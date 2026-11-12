@@ -59,6 +59,7 @@ struct CaptureStrip: View {
                 .buttonStyle(.borderless)
                 .help("Show the captures folder in Finder")
             }
+            .tint(.primary)
             .padding(.horizontal, 12)
             .frame(height: 44)
 

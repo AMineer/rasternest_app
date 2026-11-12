@@ -26,7 +26,8 @@
 **Capture (⌃⇧C by default)**
 - All-in-one: hover to highlight a window and click to capture it; drag to capture an area; Space captures the whole display
 - Frozen screen while you select, a pixel magnifier, and live size readout
-- **Screen recording** (⌃⇧R): record an area, window or screen to MP4 (H.264, 30 fps) with optional system audio and microphone; trim it and export a GIF
+- **Screen recording** (⌃⇧R): record an area, window or screen to MP4 (H.264, 30 fps) with optional system audio, microphone and on-screen keystrokes; trim it and export a GIF
+- **Adjust before capturing**: after dragging an area, resize it with handles or arrow keys and press Return
 - **Scrolling capture** (⌃⇧S): pick the area that scrolls, scroll, and get one tall image. Sticky headers appear once
 - Full screen (⌃⇧F), delayed capture (3/5/10 s), and **Grab Text** OCR (⌃⇧T) straight to the clipboard
 - Each capture is copied to the clipboard, saved to `~/Pictures/RasterNest`, and opened in the editor (each step can be turned off)
@@ -37,11 +38,13 @@
 - Drag a thumbnail straight into Slack, Notion or a doc
 
 **Markup**
-- Arrow, line, rectangle, ellipse, highlighter, text and callouts, numbered steps, pixelate (redact), spotlight, pen, crop
+- Arrow, line, rectangle, ellipse, highlighter, text and callouts, numbered steps, pixelate (redact), spotlight, **magnify lens**, pen, crop
+- **Frames**: padding, gradient or solid background, rounded corners, drop shadow and border, with presets and a default for new captures
 - Single-key tool shortcuts (`A` arrow, `R` rect, `T` text, `N` step, `B` pixelate…), Shift to snap angles/squares
 - Per-tool styles (color, width, size, fill, shadow) that stick between captures
 - Full undo/redo, nudge with arrow keys, duplicate, and reorder
-- Copy (⌘C), drag the image out into any app, export PNG/JPEG (⌘E), or save an editable `.rasternest` file (⌘S)
+- Copy (⌘C), drag the image out into any app, export PNG/JPEG/PDF (⌘E), or save an editable `.rasternest` file (⌘S)
+- **Export PDF**: combine captures into one guide, one per page (fit, Letter or A4, optional captions)
 
 **CLI: `rnest`**
 ```sh
@@ -53,6 +56,7 @@ rnest capture --rect 0,0,800,600    # exact rectangle
 rnest capture --region --text       # OCR an area, print the text
 rnest ocr screenshot.png
 rnest export demo.mp4 --format gif --width 640   # recording → GIF
+rnest export step1.rasternest step2.rasternest --format pdf --page-size letter --captions -o guide.pdf
 rnest export notes.rasternest --format png
 rnest displays | rnest windows | rnest backends
 ```
@@ -71,7 +75,7 @@ brew trust amineer/tap
 brew install amineer/tap/rnest
 ```
 
-**Direct download**: grab `RasterNest-x.y.z.dmg` from [Releases](../../releases) and drag it to Applications.
+**Direct download**: grab `RasterNest-x.y.z.dmg` from [Releases](../../releases) and drag it to Applications. From 0.4 on, RasterNest updates itself (Check for Updates… in the menu bar menu).
 
 On first capture, macOS asks for **Screen Recording** permission (System Settings › Privacy & Security › Screen & System Audio Recording). When you use `rnest` from a terminal, the permission belongs to that terminal app.
 

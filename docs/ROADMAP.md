@@ -10,11 +10,12 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ✅ Grab text (OCR → clipboard)
 - ✅ Global, customizable hotkeys
 - ✅ CLI capture on macOS and Linux
-- ⬜ Adjust the selection after dragging (handles, arrow-key nudge) before confirming
+- ✅ Adjust the selection after dragging (handles, arrow-key nudge) before confirming
 - ✅ Scrolling capture (manual scroll, sticky header/footer detection)
 - ⬜ Auto-scrolling capture and `rnest capture --scrolling`
 - ✅ Screen recording to MP4 with system audio + microphone (macOS 15), trim, GIF export
-- ⬜ Pause/resume, webcam overlay, and keystroke display while recording
+- ✅ Keystroke display while recording (shortcuts only by default)
+- ⬜ Pause/resume and webcam overlay while recording
 - ⬜ Capture the cursor (optional)
 - ⬜ Capture presets / profiles
 - ⬜ Color picker (hex from the magnifier)
@@ -25,9 +26,10 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ✅ Undo/redo, nudge, duplicate, z-order
 - ⬜ Arrow styles (curved, double-headed, tapered)
 - ⬜ Blur (gaussian) in addition to pixelate
-- ⬜ Magnify/loupe annotation
+- ✅ Magnify/loupe annotation (magnifies redactions, never the hidden pixels)
 - ⬜ Stamps and emoji
-- ⬜ Image resize, canvas padding, borders, torn edges
+- ✅ Frames: padding, background, rounded corners, shadow, border, default for new captures
+- ⬜ Image resize and torn edges
 - ⬜ Smart move / text replacement in screenshots
 - ⬜ Multi-select
 
@@ -37,12 +39,12 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ✅ One editor window with a strip of recent captures; autosave with rendered PNGs
 - ⬜ Library browser with tags and search
 - ⬜ Share targets (upload to S3, Imgur, Slack, custom webhook)
-- ⬜ PDF export
+- ✅ PDF export (single capture, multi-capture guides, `rnest export --format pdf`)
 
 ## Platform
 - ✅ macOS 14+ native app
 - ✅ Homebrew cask + formula, signed/notarized DMG pipeline
 - 🟡 Linux: CLI capture/OCR/clipboard (no GUI editor, no `export` yet)
-- ⬜ Sparkle auto-updates
+- ✅ Sparkle auto-updates (EdDSA-signed appcast published with each release)
 - ⬜ Linux GUI editor (GTK or Qt) on `RasterNestCore`
 - ⬜ Windows app (WinUI) + `rnest` for Windows

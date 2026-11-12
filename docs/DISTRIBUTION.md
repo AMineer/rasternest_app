@@ -31,6 +31,7 @@ Add these repository secrets, then push a tag such as `v0.2.0`:
 | `MACOS_CERT_PASSWORD` | the .p12 export password |
 | `MACOS_SIGN_IDENTITY` | `Developer ID Application: Your Name (TEAMID)` |
 | `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | notarization login |
+| `SPARKLE_ED_PRIVATE_KEY` | Sparkle update-signing key (`generate_keys --account rasternest -x key.txt`). **Back it up**: without it, existing installs can't verify future updates |
 | `HOMEBREW_TAP_DEPLOY_KEY` | private half of an SSH deploy key with write access to `AMineer/homebrew-tap` (or `HOMEBREW_TAP_TOKEN`, a fine-grained PAT) |
 
 `.github/workflows/release.yml` then:
