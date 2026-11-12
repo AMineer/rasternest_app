@@ -34,7 +34,16 @@ final class CanvasView: NSView, NSTextFieldDelegate {
             .sink { [weak self] _ in self?.needsDisplay = true }
             .store(in: &cancellables)
         model.$image
-            .sink { [weak self] image in self?.setFrameSize(CGSize(width: image.width, height: image.height)) }
+            .sink { [weak self] image in
+                guard let self else { return }
+                self.syncGeometry(imageSize: CGSize(width: image.width, height: image.height), effects: self.model.effects)
+            }
+            .store(in: &cancellables)
+        model.$effects
+            .sink { [weak self] effects in
+                guard let self else { return }
+                self.syncGeometry(imageSize: self.model.imageSize, effects: effects)
+            }
             .store(in: &cancellables)
         model.$tool
             .removeDuplicates()
@@ -50,6 +59,15 @@ final class CanvasView: NSView, NSTextFieldDelegate {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     override var isFlipped: Bool { true }
+
+    /// The frame's padding extends the view around the image; image coordinates stay at the
+    /// origin (bounds start at -padding), so annotations and hit testing are unaffected.
+    private func syncGeometry(imageSize: CGSize, effects: CanvasEffects) {
+        let p = effects.padding
+        setFrameSize(CGSize(width: imageSize.width + p * 2, height: imageSize.height + p * 2))
+        setBoundsOrigin(CGPoint(x: -p, y: -p))
+        needsDisplay = true
+    }
     override var acceptsFirstResponder: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
@@ -70,7 +88,8 @@ final class CanvasView: NSView, NSTextFieldDelegate {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        renderer.render(base: model.image, annotations: model.annotations, in: ctx, textHiddenFor: editingID)
+        renderer.render(base: model.image, annotations: model.annotations, in: ctx,
+                        effects: model.effects, textHiddenFor: editingID)
         if model.tool == .crop {
             drawCropOverlay(ctx)
         } else if let selected = model.selected, selected.id != editingID {

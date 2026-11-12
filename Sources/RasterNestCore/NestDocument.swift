@@ -20,9 +20,13 @@ public struct NestDocument: Codable, Sendable {
     /// Pixels per point of the original capture (2 for Retina).
     public var pixelScale: CGFloat
     public var annotations: [Annotation]
+    /// Frame around the capture (padding, background, shadow…). Absent in files from 0.3 and earlier.
+    public var effects: CanvasEffects?
     public var createdAt: Date
 
-    public init(imagePNG: Data, pixelScale: CGFloat, annotations: [Annotation], createdAt: Date = Date()) {
+    public init(imagePNG: Data, pixelScale: CGFloat, annotations: [Annotation], effects: CanvasEffects? = nil,
+                createdAt: Date = Date()) {
+        self.effects = effects
         self.formatVersion = Self.currentFormatVersion
         self.imagePNG = imagePNG
         self.pixelScale = pixelScale

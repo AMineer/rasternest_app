@@ -70,25 +70,71 @@ public final class AnnotationRenderer {
         ctx.restoreGState()
     }
 
-    /// Renders everything. The current NSGraphicsContext must wrap `ctx` with `flipped: true`.
-    public func render(base: CGImage, annotations: [Annotation], in ctx: CGContext, textHiddenFor hiddenID: UUID? = nil) {
+    /// Renders everything in image coordinates. The current NSGraphicsContext must wrap `ctx`
+    /// with `flipped: true`. With `effects`, the frame (padding/background/shadow/corners/border)
+    /// is drawn around the image, extending to negative coordinates by `effects.padding`.
+    public func render(base: CGImage, annotations: [Annotation], in ctx: CGContext,
+                       effects: CanvasEffects = .none, textHiddenFor hiddenID: UUID? = nil) {
         let full = CGRect(x: 0, y: 0, width: base.width, height: base.height)
+        let radius = min(effects.cornerRadius, full.width / 2, full.height / 2)
+        let imagePath = CGPath(roundedRect: full, cornerWidth: radius, cornerHeight: radius, transform: nil)
+
+        if effects.padding > 0 && effects.background != .none {
+            let outer = full.insetBy(dx: -effects.padding, dy: -effects.padding)
+            ctx.saveGState()
+            if effects.background == .gradient {
+                ctx.clip(to: outer)
+                let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                                   colors: [effects.backgroundColor.cgColor, effects.backgroundColor2.cgColor] as CFArray,
+                                   locations: [0, 1])!
+                ctx.drawLinearGradient(g, start: CGPoint(x: outer.minX, y: outer.minY),
+                                       end: CGPoint(x: outer.maxX, y: outer.maxY), options: [])
+            } else {
+                ctx.setFillColor(effects.backgroundColor.cgColor)
+                ctx.fill(outer)
+            }
+            ctx.restoreGState()
+        }
+
+        if effects.shadow {
+            let k = deviceScale(ctx)
+            ctx.saveGState()
+            ctx.setShadow(offset: CGSize(width: 0, height: -10 * unit * k), blur: 28 * unit * k,
+                          color: CGColor(gray: 0, alpha: 0.35))
+            ctx.addPath(imagePath)
+            ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+            ctx.fillPath()
+            ctx.restoreGState()
+        }
+
         ctx.saveGState()
+        if radius > 0 { ctx.addPath(imagePath); ctx.clip() }
         ctx.interpolationQuality = deviceScale(ctx) >= 1.99 ? .none : .high
         Self.drawImage(base, in: full, ctx)
-        ctx.restoreGState()
-
         let spotlights = annotations.filter { $0.kind == .spotlight }
         if !spotlights.isEmpty { drawSpotlights(spotlights, full: full, ctx) }
+        ctx.restoreGState()
+
+        if effects.borderWidth > 0 {
+            ctx.saveGState()
+            ctx.addPath(CGPath(roundedRect: full.insetBy(dx: effects.borderWidth / 2, dy: effects.borderWidth / 2),
+                               cornerWidth: max(0, radius - effects.borderWidth / 2),
+                               cornerHeight: max(0, radius - effects.borderWidth / 2), transform: nil))
+            ctx.setStrokeColor(effects.borderColor.cgColor)
+            ctx.setLineWidth(effects.borderWidth)
+            ctx.strokePath()
+            ctx.restoreGState()
+        }
 
         for a in annotations where a.kind != .spotlight {
             draw(a, base: base, full: full, ctx: ctx, hideText: a.id == hiddenID)
         }
     }
 
-    /// Produces a new image with the annotations burned in.
-    public func flatten(image: CGImage, annotations: [Annotation]) -> CGImage? {
-        let w = image.width, h = image.height
+    /// Produces a new image with the annotations (and frame, if any) burned in.
+    public func flatten(image: CGImage, annotations: [Annotation], effects: CanvasEffects = .none) -> CGImage? {
+        let size = effects.outputSize(for: CGSize(width: image.width, height: image.height))
+        let w = Int(size.width.rounded()), h = Int(size.height.rounded())
         let space = (image.colorSpace?.model == .rgb ? image.colorSpace : nil)
             ?? CGColorSpace(name: CGColorSpace.sRGB)!
         guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: space,
@@ -96,9 +142,10 @@ public final class AnnotationRenderer {
         else { return nil }
         ctx.translateBy(x: 0, y: CGFloat(h))
         ctx.scaleBy(x: 1, y: -1)
+        ctx.translateBy(x: effects.padding, y: effects.padding)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
-        render(base: image, annotations: annotations, in: ctx)
+        render(base: image, annotations: annotations, in: ctx, effects: effects)
         NSGraphicsContext.restoreGraphicsState()
         return ctx.makeImage()
     }

@@ -119,7 +119,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
             do {
                 let loaded = try CaptureLibrary.shared.load(item)
                 install(EditorModel(image: loaded.image, pixelScale: loaded.scale,
-                                    annotations: loaded.annotations, fileURL: item.documentURL), item: item)
+                                    annotations: loaded.annotations, fileURL: item.documentURL,
+                                    effects: loaded.effects), item: item)
             } catch {
                 present(error)
                 return
@@ -194,7 +195,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     func zoomToFit() {
         window?.contentView?.layoutSubtreeIfNeeded()
         let available = scrollView.contentSize
-        let w = CGFloat(model.image.width), h = CGFloat(model.image.height)
+        let w = canvas.frame.width, h = canvas.frame.height
         guard w > 0, h > 0, available.width > 0 else { return }
         var m = min((available.width - 32) / w, (available.height - 32) / h)
         m = min(m, 1 / model.pixelScale)   // never blow small captures past 100%

@@ -18,6 +18,7 @@ struct EditorView: View {
     @ObservedObject var model: EditorModel
     let scrollView: NSScrollView
     let actions: EditorActions
+    @State private var showFrame = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,6 +63,12 @@ struct EditorView: View {
             .padding(.horizontal, 6)
 
             Divider().frame(height: 20)
+
+            Button { showFrame.toggle() } label: {
+                Label("Frame", systemImage: "photo.artframe")
+            }
+            .help("Padding, background, rounded corners, shadow and border")
+            .popover(isPresented: $showFrame, arrowEdge: .bottom) { FrameControls(model: model) }
 
             Image(systemName: "hand.draw")
                 .font(.system(size: 14))

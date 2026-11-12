@@ -114,3 +114,26 @@ final class DocumentTests: XCTestCase {
         }
     }
 }
+
+final class CanvasEffectsTests: XCTestCase {
+    func testEffectsRoundTripInDocument() throws {
+        let effects = CanvasEffects.documentation(scale: 2)
+        let doc = NestDocument(imagePNG: Data([9]), pixelScale: 2, annotations: [], effects: effects)
+        XCTAssertEqual(try NestDocument.decoded(from: doc.encoded()).effects, effects)
+    }
+
+    func testDocumentsWithoutEffectsStillDecode() throws {
+        // Files written by 0.3 and earlier have no "effects" key.
+        var json = try JSONSerialization.jsonObject(with: NestDocument(imagePNG: Data(), pixelScale: 1, annotations: []).encoded()) as! [String: Any]
+        json.removeValue(forKey: "effects")
+        let data = try JSONSerialization.data(withJSONObject: json)
+        XCTAssertNil(try NestDocument.decoded(from: data).effects)
+    }
+
+    func testOutputSizeAddsPaddingOnBothSides() {
+        let e = CanvasEffects(padding: 30)
+        XCTAssertEqual(e.outputSize(for: CGSize(width: 100, height: 50)), CGSize(width: 160, height: 110))
+        XCTAssertTrue(CanvasEffects.none.isEmpty)
+        XCTAssertFalse(e.isEmpty)
+    }
+}

@@ -57,9 +57,10 @@ public enum ImageCodec {
         return (doc, image)
     }
 
-    public static func makeDocument(image: CGImage, scale: CGFloat, annotations: [Annotation]) -> NestDocument? {
+    public static func makeDocument(image: CGImage, scale: CGFloat, annotations: [Annotation],
+                                    effects: CanvasEffects? = nil) -> NestDocument? {
         guard let png = encode(image, format: .png, scale: scale) else { return nil }
-        return NestDocument(imagePNG: png, pixelScale: scale, annotations: annotations)
+        return NestDocument(imagePNG: png, pixelScale: scale, annotations: annotations, effects: effects)
     }
 
     public static func flattenOnWhite(_ image: CGImage) -> CGImage? {

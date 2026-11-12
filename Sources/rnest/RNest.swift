@@ -221,7 +221,7 @@ struct Export: AsyncParsableCommand {
         if inURL.pathExtension.lowercased() == NestDocument.fileExtension {
             let (doc, base) = try ImageCodec.loadDocument(inURL)
             let renderer = AnnotationRenderer(unit: doc.pixelScale)
-            guard let flat = renderer.flatten(image: base, annotations: doc.annotations) else {
+            guard let flat = renderer.flatten(image: base, annotations: doc.annotations, effects: doc.effects ?? .none) else {
                 throw CaptureFailure.backendFailed("Rendering failed.")
             }
             image = flat

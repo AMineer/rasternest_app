@@ -82,7 +82,9 @@ final class CaptureLibrary: ObservableObject {
     func addCapture(image: CGImage, scale: CGFloat, name: String = CaptureNaming.timestampedName()) throws -> Item {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let base = uniqueBase(name)
-        guard let doc = ImageCodec.makeDocument(image: image, scale: scale, annotations: []) else {
+        let defaults = AppSettings.shared.defaultEffects(scale: scale)
+        guard let doc = ImageCodec.makeDocument(image: image, scale: scale, annotations: [],
+                                                effects: defaults.isEmpty ? nil : defaults) else {
             throw CocoaError(.fileWriteUnknown)
         }
         let docURL = base.appendingPathExtension(NestDocument.fileExtension)
@@ -90,7 +92,12 @@ final class CaptureLibrary: ObservableObject {
         var pngURL: URL?
         if AppSettings.shared.keepPNG {
             let url = base.appendingPathExtension("png")
-            try doc.imagePNG.write(to: url, options: .atomic)
+            if defaults.isEmpty {
+                try doc.imagePNG.write(to: url, options: .atomic)
+            } else if let framed = AnnotationRenderer(unit: scale).flatten(image: image, annotations: [], effects: defaults),
+                      let data = ImageCodec.encode(framed, format: .png, scale: scale) {
+                try data.write(to: url, options: .atomic)
+            }
             pngURL = url
         }
         let item = Item(id: base.standardizedFileURL.path, name: base.lastPathComponent,
@@ -145,13 +152,13 @@ final class CaptureLibrary: ObservableObject {
 
     // MARK: Loading and saving
 
-    func load(_ item: Item) throws -> (image: CGImage, scale: CGFloat, annotations: [Annotation]) {
+    func load(_ item: Item) throws -> (image: CGImage, scale: CGFloat, annotations: [Annotation], effects: CanvasEffects) {
         if item.hasDocument {
             let (doc, image) = try ImageCodec.loadDocument(item.documentURL)
-            return (image, doc.pixelScale, doc.annotations)
+            return (image, doc.pixelScale, doc.annotations, doc.effects ?? .none)
         }
         if let url = item.imageURL, let (image, scale) = ImageCodec.load(url) {
-            return (image, scale, [])
+            return (image, scale, [], .none)
         }
         throw CocoaError(.fileReadNoSuchFile, userInfo: [NSFilePathErrorKey: item.documentURL.path])
     }

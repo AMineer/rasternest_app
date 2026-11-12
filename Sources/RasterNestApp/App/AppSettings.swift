@@ -20,6 +20,7 @@ final class AppSettings: ObservableObject {
         static let recordMicrophone = "recordMicrophone"
         static let showClicks = "showClicks"
         static let adjustBeforeCapture = "adjustBeforeCapture"
+        static let defaultFrame = "defaultFrame"
         static let hasOnboarded = "hasOnboarded"
     }
 
@@ -39,6 +40,26 @@ final class AppSettings: ObservableObject {
     @Published var recordMicrophone: Bool { didSet { defaults.set(recordMicrophone, forKey: Keys.recordMicrophone) } }
     @Published var showClicks: Bool { didSet { defaults.set(showClicks, forKey: Keys.showClicks) } }
     @Published var adjustBeforeCapture: Bool { didSet { defaults.set(adjustBeforeCapture, forKey: Keys.adjustBeforeCapture) } }
+
+    /// Frame applied to new captures (in points; scaled per capture). nil = no frame.
+    @Published var defaultFrame: CanvasEffects? {
+        didSet {
+            if let defaultFrame, let data = try? JSONEncoder().encode(defaultFrame) {
+                defaults.set(data, forKey: Keys.defaultFrame)
+            } else {
+                defaults.removeObject(forKey: Keys.defaultFrame)
+            }
+        }
+    }
+
+    /// The default frame scaled to a capture's pixel density.
+    func defaultEffects(scale: CGFloat) -> CanvasEffects {
+        guard var e = defaultFrame else { return .none }
+        e.padding *= scale
+        e.cornerRadius *= scale
+        e.borderWidth *= scale
+        return e
+    }
 
     var hasOnboarded: Bool {
         get { defaults.bool(forKey: Keys.hasOnboarded) }
@@ -61,6 +82,7 @@ final class AppSettings: ObservableObject {
         recordMicrophone = defaults.bool(forKey: Keys.recordMicrophone)
         showClicks = defaults.bool(forKey: Keys.showClicks)
         adjustBeforeCapture = defaults.bool(forKey: Keys.adjustBeforeCapture)
+        defaultFrame = defaults.data(forKey: Keys.defaultFrame).flatMap { try? JSONDecoder().decode(CanvasEffects.self, from: $0) }
     }
 
     private func store(_ combo: HotKeyCombo?, _ key: String) {

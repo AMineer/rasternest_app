@@ -86,6 +86,7 @@ final class EditorModel: ObservableObject {
     struct Snapshot {
         let image: CGImage
         let annotations: [Annotation]
+        var effects: CanvasEffects = .none
     }
 
     @Published private(set) var image: CGImage
@@ -105,7 +106,12 @@ final class EditorModel: ObservableObject {
     var fileURL: URL?
     private var lastCoalesce: (key: String, time: Date)?
 
-    init(image: CGImage, pixelScale: CGFloat, annotations: [Annotation] = [], fileURL: URL? = nil) {
+    /// Frame around the capture (padding, background, corners, shadow, border).
+    @Published var effects: CanvasEffects = .none
+
+    init(image: CGImage, pixelScale: CGFloat, annotations: [Annotation] = [], fileURL: URL? = nil,
+         effects: CanvasEffects = .none) {
+        self.effects = effects
         self.image = image
         self.pixelScale = max(1, pixelScale)
         self.annotations = annotations
@@ -117,7 +123,15 @@ final class EditorModel: ObservableObject {
     var imageSize: CGSize { CGSize(width: image.width, height: image.height) }
     var imageBounds: CGRect { CGRect(origin: .zero, size: imageSize) }
     var selected: Annotation? { selectedID.flatMap(annotation) }
-    var snapshot: Snapshot { Snapshot(image: image, annotations: annotations) }
+    var snapshot: Snapshot { Snapshot(image: image, annotations: annotations, effects: effects) }
+
+    /// Changes the frame with undo (slider drags merge into one step).
+    func updateEffects(coalesce: String, _ body: (inout CanvasEffects) -> Void) {
+        checkpoint(coalesce: "effects-\(coalesce)")
+        var e = effects
+        body(&e)
+        effects = e
+    }
     var nextStepNumber: Int { Annotation.nextStepNumber(in: annotations) }
     var canUndo: Bool { undoManager.canUndo }
     var canRedo: Bool { undoManager.canRedo }
@@ -152,6 +166,7 @@ final class EditorModel: ObservableObject {
         }
         image = s.image
         annotations = s.annotations
+        effects = s.effects
         if let id = selectedID, annotation(id) == nil { selectedID = nil }
         cropRect = nil
         lastCoalesce = nil
@@ -261,10 +276,11 @@ final class EditorModel: ObservableObject {
     // MARK: Output
 
     func flattened() -> CGImage? {
-        AnnotationRenderer(unit: pixelScale).flatten(image: image, annotations: annotations)
+        AnnotationRenderer(unit: pixelScale).flatten(image: image, annotations: annotations, effects: effects)
     }
 
     func makeDocument() -> NestDocument? {
-        ImageCodec.makeDocument(image: image, scale: pixelScale, annotations: annotations)
+        ImageCodec.makeDocument(image: image, scale: pixelScale, annotations: annotations,
+                                effects: effects.isEmpty ? nil : effects)
     }
 }
