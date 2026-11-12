@@ -113,6 +113,13 @@ final class OverlayView: NSView {
     private var dragRect: CGRect?
     private var hovered: (MacScreenCapturer.WindowInfo, CGRect)?
 
+    /// After dragging out an area it stays adjustable until Return / Capture.
+    private var adjusting: CGRect?
+    private enum AdjustDrag { case none, move(origin: CGPoint, start: CGRect), handle(Int, start: CGRect) }
+    private var adjustDrag: AdjustDrag = .none
+    private var captureButton: CGRect = .null
+    private var cancelButton: CGRect = .null
+
     init(frame: CGRect, snapshot: DisplaySnapshot, windows: [(MacScreenCapturer.WindowInfo, CGRect)], hint: String?,
          onFinish: @escaping (SelectionOverlayController.Result) -> Void) {
         self.snapshot = snapshot
@@ -139,7 +146,7 @@ final class OverlayView: NSView {
     override func cursorUpdate(with event: NSEvent) { NSCursor.crosshair.set() }
 
     func updateHover() {
-        guard let m = mouse, dragRect == nil else { hovered = nil; return }
+        guard let m = mouse, dragRect == nil, adjusting == nil else { hovered = nil; return }
         hovered = windows.first { $0.1.contains(m) }
     }
 
@@ -149,10 +156,64 @@ final class OverlayView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        mouse = location(event)
+        let p = location(event)
+        mouse = p
         updateHover()
-        NSCursor.crosshair.set()
+        cursor(at: p).set()
         needsDisplay = true
+    }
+
+    private func cursor(at p: CGPoint) -> NSCursor {
+        guard let r = adjusting else { return .crosshair }
+        if captureButton.contains(p) || cancelButton.contains(p) { return .pointingHand }
+        if let i = handleIndex(at: p, of: r) {
+            switch i {
+            case 1, 5: return .resizeUpDown
+            case 3, 7: return .resizeLeftRight
+            default: return .crosshair
+            }
+        }
+        return r.contains(p) ? .openHand : .crosshair
+    }
+
+    // MARK: Adjusting
+
+    /// Corner and edge handles: tl, t, tr, r, br, b, bl, l.
+    private func handles(of r: CGRect) -> [CGPoint] {
+        [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.midX, y: r.minY), CGPoint(x: r.maxX, y: r.minY),
+         CGPoint(x: r.maxX, y: r.midY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.midX, y: r.maxY),
+         CGPoint(x: r.minX, y: r.maxY), CGPoint(x: r.minX, y: r.midY)]
+    }
+
+    private func handleIndex(at p: CGPoint, of r: CGRect) -> Int? {
+        handles(of: r).firstIndex { abs($0.x - p.x) <= 8 && abs($0.y - p.y) <= 8 }
+    }
+
+    private func resized(_ start: CGRect, handle: Int, to p: CGPoint) -> CGRect {
+        var minX = start.minX, minY = start.minY, maxX = start.maxX, maxY = start.maxY
+        switch handle {
+        case 0: minX = p.x; minY = p.y
+        case 1: minY = p.y
+        case 2: maxX = p.x; minY = p.y
+        case 3: maxX = p.x
+        case 4: maxX = p.x; maxY = p.y
+        case 5: maxY = p.y
+        case 6: minX = p.x; maxY = p.y
+        default: minX = p.x
+        }
+        return Geometry.rect(CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: maxY)).intersection(bounds)
+    }
+
+    private func clampedMove(_ r: CGRect, dx: CGFloat, dy: CGFloat) -> CGRect {
+        var moved = r.offsetBy(dx: dx, dy: dy)
+        moved.origin.x = min(max(moved.minX, 0), bounds.maxX - moved.width)
+        moved.origin.y = min(max(moved.minY, 0), bounds.maxY - moved.height)
+        return moved
+    }
+
+    private func confirmAdjusted() {
+        guard let r = adjusting?.integral, r.width >= 3, r.height >= 3 else { return }
+        onFinish(.region(snapshot, r))
     }
 
     override func mouseEntered(with event: NSEvent) {
@@ -169,6 +230,18 @@ final class OverlayView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let p = location(event)
+        if let r = adjusting {
+            if captureButton.contains(p) { confirmAdjusted(); return }
+            if cancelButton.contains(p) { onFinish(.cancelled); return }
+            if let i = handleIndex(at: p, of: r) { adjustDrag = .handle(i, start: r); return }
+            if r.contains(p) {
+                if event.clickCount >= 2 { confirmAdjusted(); return }
+                adjustDrag = .move(origin: p, start: r)
+                NSCursor.closedHand.set()
+                return
+            }
+            adjusting = nil   // clicking outside starts a new selection
+        }
         dragOrigin = p
         mouse = p
         hint = nil
@@ -176,8 +249,22 @@ final class OverlayView: NSView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let origin = dragOrigin else { return }
         let p = location(event)
+        switch adjustDrag {
+        case .move(let origin, let start):
+            adjusting = clampedMove(start, dx: p.x - origin.x, dy: p.y - origin.y)
+            mouse = nil
+            needsDisplay = true
+            return
+        case .handle(let i, let start):
+            adjusting = resized(start, handle: i, to: p)
+            mouse = p
+            needsDisplay = true
+            return
+        case .none:
+            break
+        }
+        guard let origin = dragOrigin else { return }
         mouse = p
         let r = Geometry.rect(origin, p)
         if r.width >= 3 || r.height >= 3 {
@@ -189,10 +276,22 @@ final class OverlayView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         defer { dragOrigin = nil }
+        if case .none = adjustDrag {} else {
+            adjustDrag = .none
+            mouse = location(event)
+            needsDisplay = true
+            return
+        }
         if let r = dragRect {
             dragRect = nil
             if r.width >= 3 && r.height >= 3 {
-                onFinish(.region(snapshot, r))
+                if AppSettings.shared.adjustBeforeCapture {
+                    adjusting = r
+                    hint = nil
+                    needsDisplay = true
+                } else {
+                    onFinish(.region(snapshot, r))
+                }
             } else {
                 needsDisplay = true
             }
@@ -208,6 +307,23 @@ final class OverlayView: NSView {
     override func rightMouseDown(with event: NSEvent) { onFinish(.cancelled) }
 
     override func keyDown(with event: NSEvent) {
+        if let r = adjusting {
+            let step: CGFloat = event.modifierFlags.contains(.shift) ? 10 : 1
+            let resize = event.modifierFlags.contains(.option)
+            var next = r
+            switch event.keyCode {
+            case 53: onFinish(.cancelled); return
+            case 36, 76, 49: confirmAdjusted(); return
+            case 123: next = resize ? CGRect(x: r.minX, y: r.minY, width: max(4, r.width - step), height: r.height) : clampedMove(r, dx: -step, dy: 0)
+            case 124: next = resize ? CGRect(x: r.minX, y: r.minY, width: r.width + step, height: r.height).intersection(bounds) : clampedMove(r, dx: step, dy: 0)
+            case 125: next = resize ? CGRect(x: r.minX, y: r.minY, width: r.width, height: r.height + step).intersection(bounds) : clampedMove(r, dx: 0, dy: step)
+            case 126: next = resize ? CGRect(x: r.minX, y: r.minY, width: r.width, height: max(4, r.height - step)) : clampedMove(r, dx: 0, dy: -step)
+            default: super.keyDown(with: event); return
+            }
+            adjusting = next
+            needsDisplay = true
+            return
+        }
         switch event.keyCode {
         case 53: onFinish(.cancelled)                    // Esc
         case 49, 36, 76: onFinish(.display(snapshot))    // Space / Return: whole display
@@ -221,14 +337,14 @@ final class OverlayView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let focus = dragRect ?? hovered?.1
+        let focus = adjusting ?? dragRect ?? hovered?.1
 
         ctx.setFillColor(CGColor(gray: 0, alpha: 0.38))
         if let focus {
             ctx.addRect(bounds)
             ctx.addRect(focus)
             ctx.fillPath(using: .evenOdd)
-            if dragRect != nil {
+            if adjusting != nil || dragRect != nil {
                 ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.95))
                 ctx.setLineWidth(1)
             } else {
@@ -240,20 +356,72 @@ final class OverlayView: NSView {
             ctx.fill(bounds)
         }
 
-        if dragRect == nil, let m = mouse { drawCrosshair(ctx, at: m) }
+        if dragRect == nil, adjusting == nil, let m = mouse { drawCrosshair(ctx, at: m) }
 
-        if let r = dragRect {
+        if let r = adjusting {
+            drawAdjusting(ctx, r)
+        } else if let r = dragRect {
             drawLabel("\(px(r.width)) × \(px(r.height))", at: CGPoint(x: r.maxX - 90, y: r.maxY + 8))
         } else if let (info, r) = hovered {
             let name = info.owner.isEmpty ? "Window" : info.owner
             drawLabel("\(name)  \(px(r.width)) × \(px(r.height))", at: CGPoint(x: r.minX + 8, y: r.minY + 8))
         }
 
-        if let m = mouse { drawLoupe(ctx, at: m) }
+        if let m = mouse {
+            if adjusting == nil {
+                drawLoupe(ctx, at: m)
+            } else if case .handle = adjustDrag {
+                drawLoupe(ctx, at: m)
+            }
+        }
         if let hint { drawHint(hint) }
     }
 
     private func px(_ v: CGFloat) -> Int { Int((v * snapshot.scale).rounded()) }
+
+    private func drawAdjusting(_ ctx: CGContext, _ r: CGRect) {
+        // Handles
+        for h in handles(of: r) {
+            let box = CGRect(x: h.x - 4.5, y: h.y - 4.5, width: 9, height: 9)
+            ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+            ctx.fill(box)
+            ctx.setStrokeColor(Brand.violet.cgColor)
+            ctx.setLineWidth(1.5)
+            ctx.stroke(box)
+        }
+
+        // Toolbar: size · Cancel · Capture, under the area (or above / inside when there's no room)
+        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .semibold),
+                                                    .foregroundColor: NSColor.white]
+        let sizeText = "\(px(r.width)) × \(px(r.height))" as NSString
+        let cancelText = "Cancel" as NSString, captureText = "Capture  ↩" as NSString
+        let sizeW = sizeText.size(withAttributes: attrs).width
+        let cancelW = cancelText.size(withAttributes: attrs).width + 24
+        let captureW = captureText.size(withAttributes: attrs).width + 28
+        let height: CGFloat = 34, pad: CGFloat = 6
+        let width = pad + sizeW + 16 + cancelW + 6 + captureW + pad
+        var origin = CGPoint(x: r.maxX - width, y: r.maxY + 10)
+        if origin.y + height > bounds.maxY - 6 { origin.y = r.minY - height - 10 }
+        if origin.y < 6 { origin.y = r.maxY - height - 10 }
+        origin.x = min(max(origin.x, 6), bounds.maxX - width - 6)
+        let bar = CGRect(origin: origin, size: CGSize(width: width, height: height))
+
+        NSColor(white: 0.08, alpha: 0.88).setFill()
+        NSBezierPath(roundedRect: bar, xRadius: 10, yRadius: 10).fill()
+        sizeText.draw(at: CGPoint(x: bar.minX + pad + 6, y: bar.midY - 8), withAttributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 12.5, weight: .medium),
+            .foregroundColor: NSColor(white: 1, alpha: 0.75)])
+
+        cancelButton = CGRect(x: bar.minX + pad + sizeW + 16, y: bar.minY + 4, width: cancelW, height: height - 8)
+        NSColor(white: 1, alpha: 0.14).setFill()
+        NSBezierPath(roundedRect: cancelButton, xRadius: 7, yRadius: 7).fill()
+        cancelText.draw(at: CGPoint(x: cancelButton.minX + 12, y: cancelButton.midY - 8.5), withAttributes: attrs)
+
+        captureButton = CGRect(x: cancelButton.maxX + 6, y: bar.minY + 4, width: captureW, height: height - 8)
+        Brand.violet.setFill()
+        NSBezierPath(roundedRect: captureButton, xRadius: 7, yRadius: 7).fill()
+        captureText.draw(at: CGPoint(x: captureButton.minX + 14, y: captureButton.midY - 8.5), withAttributes: attrs)
+    }
 
     private func drawCrosshair(_ ctx: CGContext, at m: CGPoint) {
         ctx.saveGState()

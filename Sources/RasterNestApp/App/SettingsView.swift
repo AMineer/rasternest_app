@@ -47,6 +47,13 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Selecting an area") {
+                Toggle("Adjust the area before capturing", isOn: $settings.adjustBeforeCapture)
+                Text("Drag the handles or use the arrow keys, then press Return. Turn off to capture as soon as you let go.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("After capturing") {
                 Toggle("Open in the editor", isOn: $settings.openEditor)
                 Toggle("Copy to the clipboard", isOn: $settings.copyToClipboard)

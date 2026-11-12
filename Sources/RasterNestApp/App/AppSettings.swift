@@ -19,6 +19,7 @@ final class AppSettings: ObservableObject {
         static let recordSystemAudio = "recordSystemAudio"
         static let recordMicrophone = "recordMicrophone"
         static let showClicks = "showClicks"
+        static let adjustBeforeCapture = "adjustBeforeCapture"
         static let hasOnboarded = "hasOnboarded"
     }
 
@@ -37,6 +38,7 @@ final class AppSettings: ObservableObject {
     @Published var recordSystemAudio: Bool { didSet { defaults.set(recordSystemAudio, forKey: Keys.recordSystemAudio) } }
     @Published var recordMicrophone: Bool { didSet { defaults.set(recordMicrophone, forKey: Keys.recordMicrophone) } }
     @Published var showClicks: Bool { didSet { defaults.set(showClicks, forKey: Keys.showClicks) } }
+    @Published var adjustBeforeCapture: Bool { didSet { defaults.set(adjustBeforeCapture, forKey: Keys.adjustBeforeCapture) } }
 
     var hasOnboarded: Bool {
         get { defaults.bool(forKey: Keys.hasOnboarded) }
@@ -44,7 +46,7 @@ final class AppSettings: ObservableObject {
     }
 
     private init() {
-        defaults.register(defaults: [Keys.openEditor: true, Keys.copyToClipboard: true, Keys.keepPNG: true, Keys.showClicks: true])
+        defaults.register(defaults: [Keys.openEditor: true, Keys.copyToClipboard: true, Keys.keepPNG: true, Keys.showClicks: true, Keys.adjustBeforeCapture: true])
         openEditor = defaults.bool(forKey: Keys.openEditor)
         copyToClipboard = defaults.bool(forKey: Keys.copyToClipboard)
         keepPNG = defaults.bool(forKey: Keys.keepPNG)
@@ -58,6 +60,7 @@ final class AppSettings: ObservableObject {
         recordSystemAudio = defaults.bool(forKey: Keys.recordSystemAudio)
         recordMicrophone = defaults.bool(forKey: Keys.recordMicrophone)
         showClicks = defaults.bool(forKey: Keys.showClicks)
+        adjustBeforeCapture = defaults.bool(forKey: Keys.adjustBeforeCapture)
     }
 
     private func store(_ combo: HotKeyCombo?, _ key: String) {
