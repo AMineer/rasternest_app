@@ -5,8 +5,8 @@ Thanks for helping! Bug reports, feature ideas and pull requests are all welcome
 ## Getting started
 
 ```sh
-git clone https://github.com/<owner>/rasternest.git
-cd rasternest
+git clone https://github.com/AMineer/rasternest_app.git
+cd rasternest_app
 make test   # unit tests
 make run    # build + launch the app
 ```

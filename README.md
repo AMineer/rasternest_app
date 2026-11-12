@@ -36,12 +36,12 @@ rnest displays | rnest windows | rnest backends
 
 **Homebrew (macOS)**: app plus `rnest`:
 ```sh
-brew install --cask <owner>/tap/rasternest
+brew install --cask amineer/tap/rasternest
 ```
 
 **Homebrew (Linux or CLI only)**:
 ```sh
-brew install <owner>/tap/rnest
+brew install amineer/tap/rnest
 ```
 
 **Direct download**: grab `RasterNest-x.y.z.dmg` from [Releases](../../releases) and drag it to Applications.

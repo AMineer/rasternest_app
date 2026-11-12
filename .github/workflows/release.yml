@@ -7,7 +7,7 @@ name: Release
 #   MACOS_CERT_PASSWORD     Password for the .p12
 #   MACOS_SIGN_IDENTITY     e.g. "Developer ID Application: Your Name (TEAMID)"
 #   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD   for notarization
-#   HOMEBREW_TAP_TOKEN      PAT with push access to <owner>/homebrew-tap
+#   HOMEBREW_TAP_TOKEN      PAT with push access to AMineer/homebrew-tap
 
 on:
   push:
