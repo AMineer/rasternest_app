@@ -31,6 +31,8 @@ struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @State private var hasPermission = Permissions.hasScreenCapture
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var autoCheck = Updater.shared.isAvailable ? Updater.shared.automaticallyChecks : true
+    @State private var autoDownload = Updater.shared.isAvailable ? Updater.shared.automaticallyDownloads : false
 
     var body: some View {
         Form {
@@ -69,6 +71,24 @@ struct SettingsView: View {
                     Text("Microphone recording and click highlights need macOS 15 or later.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Updates") {
+                Toggle("Check for updates automatically", isOn: Binding(
+                    get: { autoCheck },
+                    set: { autoCheck = $0; Updater.shared.automaticallyChecks = $0 }
+                ))
+                Toggle("Download and install updates in the background", isOn: Binding(
+                    get: { autoDownload },
+                    set: { autoDownload = $0; Updater.shared.automaticallyDownloads = $0 }
+                ))
+                .disabled(!autoCheck)
+                HStack {
+                    Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–")")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Check Now") { Updater.shared.checkForUpdates(nil) }
                 }
             }
 

@@ -43,8 +43,11 @@ BIN_DIR="$(swift build -c "$CONFIG" ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --show-b
 
 echo "▸ Assembling $APP"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN_DIR/RasterNestApp" "$APP/Contents/MacOS/$APP_NAME"
+# Sparkle (auto-updates) lives in Contents/Frameworks.
+ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/$APP_NAME" 2>/dev/null || true
 cp "$BIN_DIR/rnest" "$APP/Contents/Helpers/rnest"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
@@ -59,6 +62,14 @@ if [[ "$SIGN_IDENTITY" != "-" ]]; then
   SIGN_FLAGS+=(--options runtime --timestamp)
 fi
 codesign "${SIGN_FLAGS[@]}" "$APP/Contents/Helpers/rnest"
+# Sign Sparkle's nested code innermost-first (required for notarization).
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+for xpc in "$SPARKLE"/XPCServices/*.xpc; do
+  [[ -e "$xpc" ]] && codesign "${SIGN_FLAGS[@]}" --preserve-metadata=entitlements "$xpc"
+done
+codesign "${SIGN_FLAGS[@]}" "$SPARKLE/Autoupdate"
+codesign "${SIGN_FLAGS[@]}" "$SPARKLE/Updater.app"
+codesign "${SIGN_FLAGS[@]}" "$APP/Contents/Frameworks/Sparkle.framework"
 codesign "${SIGN_FLAGS[@]}" --entitlements Resources/RasterNest.entitlements "$APP"
 codesign --verify --strict --deep "$APP"
 

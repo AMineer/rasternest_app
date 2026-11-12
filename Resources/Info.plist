@@ -77,6 +77,14 @@
 	<string>RasterNest records your microphone only when you turn on microphone audio for a screen recording.</string>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/AMineer/rasternest_app/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>ZHB5YOlZ/jUxpWqJDbivfY/07Cf+oaNBVHslnRvJ+Lc=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

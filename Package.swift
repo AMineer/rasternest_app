@@ -31,12 +31,21 @@ var targets: [Target] = [
     .testTarget(name: "RasterNestCoreTests", dependencies: ["RasterNestCore"]),
 ]
 
+var dependencies: [Package.Dependency] = [
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
+]
+
 #if os(macOS)
+// Sparkle: in-app auto-updates for the DMG build (macOS only).
+dependencies.append(.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"))
 products.append(.executable(name: "RasterNestApp", targets: ["RasterNestApp"]))
 targets.append(
     .executableTarget(
         name: "RasterNestApp",
-        dependencies: ["RasterNestCore", "RasterNestCapture", "RasterNestRender"]
+        dependencies: [
+            "RasterNestCore", "RasterNestCapture", "RasterNestRender",
+            .product(name: "Sparkle", package: "Sparkle"),
+        ]
     )
 )
 #endif
@@ -45,9 +54,7 @@ let package = Package(
     name: "RasterNest",
     platforms: [.macOS(.v14)],
     products: products,
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
-    ],
+    dependencies: dependencies,
     targets: targets,
     swiftLanguageModes: [.v5]
 )

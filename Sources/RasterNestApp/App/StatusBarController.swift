@@ -85,6 +85,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(ActionMenuItem("Settings…", key: ",", modifiers: .command) { SettingsWindowController.shared.show() })
+        menu.addItem(ActionMenuItem("Check for Updates…") { Updater.shared.checkForUpdates(nil) })
         menu.addItem(ActionMenuItem("About RasterNest") { Brand.showAbout() })
         menu.addItem(ActionMenuItem("Quit RasterNest", key: "q", modifiers: .command) { NSApp.terminate(nil) })
     }

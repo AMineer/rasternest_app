@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainMenu.install()
         CaptureLibrary.shared.reload()
+        Updater.shared.start()
         statusBar = StatusBarController(capture: capture)
         registerHotKeys()
         hotKeyObserver = NotificationCenter.default.addObserver(forName: AppSettings.hotKeysChanged, object: nil, queue: .main) { [weak self] _ in
@@ -97,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 capture.startScrolling()
             }
         case "settings": SettingsWindowController.shared.show()
+        case "check-updates": Updater.shared.checkForUpdates(nil)
         default: break
         }
     }
@@ -112,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func openDocument(_ sender: Any?) { DocumentOpener.presentOpenPanel() }
     @objc func showSettings(_ sender: Any?) { SettingsWindowController.shared.show() }
     @objc func showAbout(_ sender: Any?) { Brand.showAbout() }
+    @objc func checkForUpdates(_ sender: Any?) { Updater.shared.checkForUpdates(sender) }
 }
 
 /// The app lives in the menu bar; it shows in the Dock only while it has windows open.
