@@ -160,6 +160,21 @@ private struct InspectorBar: View {
             slider("Block", \.lineWidth, 4 * s...40 * s)
         case .spotlight:
             slider("Dim", \.opacity, 0.15...0.9)
+        case .magnify:
+            HStack(spacing: 6) {
+                Text("Zoom").foregroundStyle(.secondary)
+                Slider(value: Binding(get: { model.inspectedStyle.zoomFactor },
+                                      set: { v in model.updateInspectedStyle(coalesce: "zoom") { $0.zoom = v } }),
+                       in: 1.5...4, step: 0.25)
+                    .frame(width: 110)
+                    .controlSize(.small)
+                Text("\(Int((model.inspectedStyle.zoomFactor * 100).rounded()))%")
+                    .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            }
+            ColorSwatches(model: model)
+            slider("Rim", \.lineWidth, 0 * s...12 * s)
+            toggle("Square", \.filled)
+            toggle("Shadow", \.shadow)
         case .highlight:
             ColorSwatches(model: model)
             slider("Opacity", \.opacity, 0.15...0.8)

@@ -4,7 +4,7 @@ import RasterNestCore
 import RasterNestRender
 
 enum Tool: String, CaseIterable, Identifiable {
-    case select, arrow, line, rectangle, ellipse, highlight, text, step, pixelate, spotlight, pen, crop
+    case select, arrow, line, rectangle, ellipse, highlight, text, step, pixelate, spotlight, magnify, pen, crop
 
     var id: String { rawValue }
 
@@ -25,6 +25,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .step: return "Step"
         case .pixelate: return "Pixelate"
         case .spotlight: return "Spotlight"
+        case .magnify: return "Magnify"
         case .pen: return "Pen"
         case .crop: return "Crop"
         }
@@ -42,6 +43,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .step: return "1.circle"
         case .pixelate: return "checkerboard.rectangle"
         case .spotlight: return "flashlight.on.fill"
+        case .magnify: return "plus.magnifyingglass"
         case .pen: return "scribble.variable"
         case .crop: return "crop"
         }
@@ -59,6 +61,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .step: return "n"
         case .pixelate: return "b"
         case .spotlight: return "s"
+        case .magnify: return "m"
         case .pen: return "p"
         case .crop: return "c"
         }
@@ -75,6 +78,7 @@ enum Tool: String, CaseIterable, Identifiable {
             .step: AnnotationStyle(color: .red, fontSize: 14 * s),
             .pixelate: AnnotationStyle(color: .black, lineWidth: 10 * s, shadow: false),
             .spotlight: AnnotationStyle(color: .black, lineWidth: 0, shadow: false, opacity: 0.55),
+            .magnify: AnnotationStyle(color: .white, lineWidth: 4 * s, shadow: true, zoom: 2),
             .pen: AnnotationStyle(color: .red, lineWidth: 4 * s),
         ]
     }

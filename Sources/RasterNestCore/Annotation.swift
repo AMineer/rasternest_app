@@ -4,12 +4,12 @@ import CoreGraphics
 #endif
 
 public enum AnnotationKind: String, Codable, CaseIterable, Sendable {
-    case arrow, line, rectangle, ellipse, highlight, text, step, pixelate, spotlight, pen
+    case arrow, line, rectangle, ellipse, highlight, text, step, pixelate, spotlight, pen, magnify
 
     /// Kinds whose geometry is the rectangle spanned by `start` and `end`.
     public var isBoxed: Bool {
         switch self {
-        case .rectangle, .ellipse, .highlight, .pixelate, .spotlight, .text: return true
+        case .rectangle, .ellipse, .highlight, .pixelate, .spotlight, .text, .magnify: return true
         case .arrow, .line, .step, .pen: return false
         }
     }
@@ -27,9 +27,14 @@ public struct AnnotationStyle: Codable, Hashable, Sendable {
     public var shadow: Bool
     /// Highlighter opacity / spotlight dim amount.
     public var opacity: CGFloat
+    /// Magnification for the magnify lens (2 = 200%). Optional so older files decode.
+    public var zoom: CGFloat?
+
+    public var zoomFactor: CGFloat { max(1.2, min(zoom ?? 2, 6)) }
 
     public init(color: RGBA = .red, lineWidth: CGFloat = 4, fontSize: CGFloat = 22,
-                filled: Bool = false, shadow: Bool = true, opacity: CGFloat = 1) {
+                filled: Bool = false, shadow: Bool = true, opacity: CGFloat = 1, zoom: CGFloat? = nil) {
+        self.zoom = zoom
         self.color = color
         self.lineWidth = lineWidth
         self.fontSize = fontSize
@@ -80,7 +85,7 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
         case .step:
             let r = stepRadius
             return CGRect(x: start.x - r, y: start.y - r, width: r * 2, height: r * 2)
-        case .arrow, .line, .rectangle, .ellipse:
+        case .arrow, .line, .rectangle, .ellipse, .magnify:
             return rect.insetBy(dx: -pad, dy: -pad)
         case .text, .highlight, .pixelate, .spotlight:
             return rect
@@ -121,7 +126,7 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
             let v = (dx * dx + dy * dy).squareRoot()
             if style.filled && v <= 1 { return true }
             return abs(v - 1) * min(rx, ry) <= tol
-        case .highlight, .pixelate, .spotlight, .text:
+        case .highlight, .pixelate, .spotlight, .text, .magnify:
             return rect.insetBy(dx: -tolerance, dy: -tolerance).contains(p)
         case .step:
             return Geometry.distance(p, start) <= stepRadius + tolerance
@@ -142,7 +147,7 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
         switch kind {
         case .arrow, .line:
             return [start, end]
-        case .rectangle, .ellipse, .highlight, .pixelate, .spotlight:
+        case .rectangle, .ellipse, .highlight, .pixelate, .spotlight, .magnify:
             return [start, end, CGPoint(x: start.x, y: end.y), CGPoint(x: end.x, y: start.y)]
         case .text, .step, .pen:
             return []

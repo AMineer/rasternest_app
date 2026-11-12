@@ -126,8 +126,13 @@ public final class AnnotationRenderer {
             ctx.restoreGState()
         }
 
-        for a in annotations where a.kind != .spotlight {
-            draw(a, base: base, full: full, ctx: ctx, hideText: a.id == hiddenID)
+        for (i, a) in annotations.enumerated() where a.kind != .spotlight {
+            if a.kind == .magnify {
+                // Magnify what's actually there, including redactions drawn below the lens.
+                drawMagnifier(a, base: base, full: full, below: Array(annotations[..<i]), ctx: ctx)
+            } else {
+                draw(a, base: base, full: full, ctx: ctx, hideText: a.id == hiddenID)
+            }
         }
     }
 
@@ -228,6 +233,9 @@ public final class AnnotationRenderer {
         case .spotlight:
             break // drawn together in drawSpotlights
 
+        case .magnify:
+            drawMagnifier(a, base: base, full: full, below: [], ctx: ctx)
+
         case .pen:
             let pts = a.points
             guard pts.count > 1 else { return }
@@ -249,6 +257,47 @@ public final class AnnotationRenderer {
         case .text:
             drawText(a, ctx, hideText: hideText)
         }
+    }
+
+    /// A lens showing the area under it enlarged by `style.zoomFactor`.
+    private func drawMagnifier(_ a: Annotation, base: CGImage, full: CGRect, below: [Annotation], ctx: CGContext) {
+        let r = a.rect
+        guard r.width > 2, r.height > 2 else { return }
+        let lens = a.style.filled
+            ? CGPath(roundedRect: r, cornerWidth: min(r.width, r.height) * 0.12,
+                     cornerHeight: min(r.width, r.height) * 0.12, transform: nil)
+            : CGPath(ellipseIn: r, transform: nil)
+        let zoom = a.style.zoomFactor
+
+        // Shadow under the lens.
+        applyShadow(ctx, a)
+        ctx.addPath(lens)
+        ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+        ctx.fillPath()
+        ctx.setShadow(offset: .zero, blur: 0, color: nil)
+
+        // Enlarged content: the source area (lens size / zoom) centred on the lens.
+        ctx.saveGState()
+        ctx.addPath(lens)
+        ctx.clip()
+        let dest = CGRect(x: r.midX - r.midX * zoom, y: r.midY - r.midY * zoom,
+                          width: full.width * zoom, height: full.height * zoom)
+        ctx.interpolationQuality = .high
+        Self.drawImage(base, in: dest, ctx)
+        if !below.isEmpty {
+            ctx.translateBy(x: dest.minX, y: dest.minY)
+            ctx.scaleBy(x: zoom, y: zoom)
+            for b in below where b.kind != .magnify && b.kind != .spotlight {
+                draw(b, base: base, full: full, ctx: ctx, hideText: false)
+            }
+        }
+        ctx.restoreGState()
+
+        // Rim.
+        ctx.addPath(lens)
+        ctx.setStrokeColor(a.style.color.cgColor)
+        ctx.setLineWidth(max(1, a.style.lineWidth))
+        ctx.strokePath()
     }
 
     private func drawStep(_ a: Annotation, _ ctx: CGContext) {
