@@ -161,10 +161,15 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 
 /* ---------- Shortcuts ---------- */
 .keys { background: var(--surface); border-bottom: 1px solid var(--line); }
-.keys-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.keys-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .key-item { display: flex; align-items: center; gap: 14px; padding: 24px 20px; min-width: 0; }
 .key-item + .key-item { border-left: 1px solid var(--line); }
-@media (max-width: 720px) {
+@media (max-width: 1000px) {
+  .keys-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .key-item:nth-child(3) { border-left: 0; }
+  .key-item:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+@media (max-width: 620px) {
   .keys-row { grid-template-columns: minmax(0, 1fr); }
   .key-item + .key-item { border-left: 0; border-top: 1px solid var(--line); }
 }
@@ -278,7 +283,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
         <a class="optional" href="#features">Features</a>
         <a class="optional" href="#cli">CLI</a>
         <a class="optional" href="https://github.com/AMineer/rasternest_app" rel="noopener">GitHub</a>
-        <a class="btn btn-violet pill" href="#install">Download</a>
+        <a class="btn btn-violet pill" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.dmg" title="Download RasterNest for macOS (DMG)">Download</a>
       </nav>
     </div>
   </header>
@@ -296,7 +301,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
         </a>
         <a class="btn btn-outline" href="#install">Homebrew &amp; Linux</a>
       </div>
-      <p class="fineprint"><b class="version">Latest release</b> · macOS 14 Sonoma or later · Apple silicon and Intel · MIT licence</p>
+      <p class="fineprint"><b class="version">Latest version</b> · macOS 14 Sonoma or later · Apple silicon and Intel · MIT licence</p>
     </div>
 
     <div class="wrap shot-crop" aria-label="The RasterNest editor with a highlighted setting, an arrow, numbered steps, a callout and a pixelated area">
@@ -380,6 +385,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
   <div class="wrap keys-row">
     <div class="key-item"><kbd>⌃⇧C</kbd><div><strong>Capture area or window</strong><span>Hover to pick a window, drag for an area</span></div></div>
     <div class="key-item"><kbd>⌃⇧F</kbd><div><strong>Capture full screen</strong><span>The display under your pointer</span></div></div>
+    <div class="key-item"><kbd>⌃⇧S</kbd><div><strong>Scrolling capture</strong><span>Scroll a long page; it stitches into one image</span></div></div>
     <div class="key-item"><kbd>⌃⇧T</kbd><div><strong>Grab text</strong><span>Select anything; the words land on your clipboard</span></div></div>
   </div>
 </div>
@@ -399,6 +405,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>All-in-one selection.</b> <span>Windows highlight as you hover. Click one, drag an area, or press Space for the whole display.</span></div></li>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Pixel magnifier.</b> <span>A 15 × 15 px loupe and live size readout for exact edges.</span></div></li>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Clean window shots.</b> <span>Windows are captured whole, even when other windows cover part of them.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Scrolling capture.</b> <span>Pick the part that scrolls and scroll. Sticky headers appear once, and the whole page becomes one tall image.</span></div></li>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Delay timer and OCR.</b> <span>Capture after 3, 5 or 10 seconds, or turn any region into copyable text.</span></div></li>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Retina-sharp.</b> <span>Saved at full resolution with 144 dpi metadata, so images paste at the right size.</span></div></li>
           </ul>
@@ -421,7 +428,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
           <ul>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Styles that stick.</b> <span>Each tool remembers its color, width and shadow between captures.</span></div></li>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Share in one move.</b> <span>⌘C to copy, drag the image into Slack or a doc, or ⌘E to export PNG or JPEG.</span></div></li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Edit later.</b> <span>Save a <code>.rasternest</code> file to keep every annotation editable.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Built for documentation.</b> <span>One editor window with your recent captures alongside. Jump back to any of them, and edits save automatically, with an up-to-date PNG beside each one.</span></div></li>
           </ul>
         </div>
       </div>
@@ -542,18 +549,14 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
     });
   });
 
-  // Show the latest version; before the first release, send people to the releases page.
+  // Show the latest version number (best effort; download links never depend on this call).
   fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: "application/vnd.github+json" } })
     .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
     .then((rel) => {
       const v = (rel.tag_name || "").replace(/^v/, "");
-      document.querySelectorAll(".version").forEach((el) => (el.textContent = `Version ${v}`));
+      if (v) document.querySelectorAll(".version").forEach((el) => (el.textContent = `Version ${v}`));
     })
-    .catch(() => {
-      document.querySelectorAll(".version").forEach((el) => (el.textContent = "First release coming soon"));
-      // No release yet: every direct download link points at the Releases page instead of a 404.
-      document.querySelectorAll('a[href*="/releases/latest/download/"]').forEach((a) => (a.href = `https://github.com/${REPO}/releases`));
-    });
+    .catch(() => {});
 })();
 </script>
 </body>

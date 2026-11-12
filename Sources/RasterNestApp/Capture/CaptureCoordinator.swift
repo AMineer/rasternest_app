@@ -9,7 +9,98 @@ final class CaptureCoordinator {
     enum Mode { case image, text }
 
     private var overlay: SelectionOverlayController?
+    private var scrolling: ScrollingCaptureSession?
     private var busy = false
+
+    /// Scrolling capture: pick the area that scrolls, then scroll; Done stitches it into one image.
+    /// Triggering it again while recording finishes the capture.
+    func startScrolling(fromMenu: Bool = false) {
+        if let scrolling {
+            scrolling.finish()
+            return
+        }
+        guard !busy else { return }
+        busy = true
+        Task {
+            guard await ensurePermission() else { busy = false; return }
+            if fromMenu { try? await Task.sleep(nanoseconds: 200_000_000) }
+            do {
+                var snaps: [DisplaySnapshot] = []
+                for screen in NSScreen.screens {
+                    if let snap = try await snapshot(screen) { snaps.append(snap) }
+                }
+                guard !snaps.isEmpty else { throw CaptureError.noDisplays }
+                let controller = SelectionOverlayController()
+                overlay = controller
+                controller.begin(snapshots: snaps, windows: MacScreenCapturer.onScreenWindows(),
+                                 hint: "Drag over the part that scrolls, or click a window  ·  Esc to cancel") { [weak self] result in
+                    guard let self else { return }
+                    self.overlay = nil
+                    switch result {
+                    case .region(let snap, let rect): self.beginScrolling(snap, rect)
+                    case .window(_, let snap, let rect): self.beginScrolling(snap, rect)
+                    case .display(let snap): self.beginScrolling(snap, CGRect(origin: .zero, size: snap.screen.frame.size))
+                    case .cancelled: self.busy = false
+                    }
+                }
+            } catch {
+                busy = false
+                present(error)
+            }
+        }
+    }
+
+    /// Scrolling capture of an exact area (global points, origin top-left of the main display),
+    /// skipping the selection overlay. Used by `rasternest://scrolling?rect=x,y,w,h`.
+    func startScrolling(globalRect: CGRect) {
+        if let scrolling { scrolling.finish(); return }
+        guard !busy else { return }
+        busy = true
+        Task {
+            guard await ensurePermission() else { busy = false; return }
+            for screen in NSScreen.screens {
+                guard let id = screen.displayID else { continue }
+                let bounds = CGDisplayBounds(id)
+                guard bounds.contains(globalRect.origin) else { continue }
+                let local = globalRect.offsetBy(dx: -bounds.minX, dy: -bounds.minY)
+                    .intersection(CGRect(origin: .zero, size: bounds.size))
+                beginScrolling(screen: screen, displayID: id, scale: CGFloat(MacScreenCapturer.scale(of: id)), rect: local)
+                return
+            }
+            busy = false
+            HUD.show("That area isn't on a display", symbol: "exclamationmark.circle")
+        }
+    }
+
+    private func beginScrolling(_ snap: DisplaySnapshot, _ rect: CGRect) {
+        beginScrolling(screen: snap.screen, displayID: snap.displayID, scale: snap.scale, rect: rect)
+    }
+
+    private func beginScrolling(screen: NSScreen, displayID: CGDirectDisplayID, scale: CGFloat, rect: CGRect) {
+        guard rect.width >= 40, rect.height >= 60 else {
+            busy = false
+            HUD.show("Pick a larger area to scroll", symbol: "exclamationmark.circle")
+            return
+        }
+        let session = ScrollingCaptureSession(screen: screen, displayID: displayID, region: rect, scale: scale)
+        session.onFinish = { [weak self] image, scale in
+            guard let self else { return }
+            self.scrolling = nil
+            Task {
+                defer { self.busy = false }
+                if let image { await self.deliver(image, scale: scale, mode: .image) }
+            }
+        }
+        scrolling = session
+        Task {
+            do {
+                try await session.start()
+            } catch {
+                session.cancel()
+                present(error)
+            }
+        }
+    }
 
     /// All-in-one capture (area, window or display). `fromMenu` waits for the menu to fade out.
     func startInteractive(mode: Mode = .image, delay: Int = 0, fromMenu: Bool = false) {
@@ -124,10 +215,16 @@ final class CaptureCoordinator {
             }
         case .image:
             let settings = AppSettings.shared
-            if settings.autoSave { _ = try? ImageExport.autosave(image, scale: scale) }
+            let item: CaptureLibrary.Item?
+            do {
+                item = try CaptureLibrary.shared.addCapture(image: image, scale: scale)
+            } catch {
+                item = nil
+                present(error)
+            }
             if settings.copyToClipboard { ImageExport.copyToPasteboard(image, scale: scale) }
-            if settings.openEditor {
-                EditorWindowController.open(image: image, scale: scale)
+            if settings.openEditor, let item {
+                EditorWindowController.show(item)
             } else if settings.copyToClipboard {
                 HUD.show("Copied to clipboard")
             } else {

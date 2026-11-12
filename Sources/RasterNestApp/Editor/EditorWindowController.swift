@@ -8,30 +8,44 @@ extension UTType {
     static let rasterNestDocument = UTType(filenameExtension: NestDocument.fileExtension, conformingTo: .data) ?? .data
 }
 
+/// What the single editor window is showing.
+@MainActor
+final class EditorSession: ObservableObject {
+    @Published var model: EditorModel
+    @Published var item: CaptureLibrary.Item?
+
+    init(model: EditorModel) { self.model = model }
+}
+
+/// The one editor window. New captures load into it; the strip on the left switches between
+/// recent captures. Edits are saved automatically (switching, closing, leaving the window).
 @MainActor
 final class EditorWindowController: NSWindowController, NSWindowDelegate {
-    private static var openControllers: [EditorWindowController] = []
-
-    let model: EditorModel
-    private let canvas: CanvasView
-    private let scrollView: NSScrollView
-    private var closeAfterSave = false
-    private var magnifyObserver: NSObjectProtocol?
-
-    @discardableResult
-    static func open(image: CGImage, scale: CGFloat, annotations: [Annotation] = [],
-                     fileURL: URL? = nil, title: String? = nil) -> EditorWindowController {
-        let model = EditorModel(image: image, pixelScale: scale, annotations: annotations, fileURL: fileURL)
-        let controller = EditorWindowController(model: model,
-                                                title: title ?? fileURL?.lastPathComponent ?? CaptureNaming.timestampedName())
-        openControllers.append(controller)
-        controller.present()
+    private static var instance: EditorWindowController?
+    static var shared: EditorWindowController {
+        if let instance { return instance }
+        let controller = EditorWindowController()
+        instance = controller
         return controller
     }
 
-    init(model: EditorModel, title: String) {
-        self.model = model
-        canvas = CanvasView(model: model)
+    /// Saves pending edits, e.g. before quitting.
+    static func commitIfOpen() { instance?.commitCurrent() }
+
+    static func show(_ item: CaptureLibrary.Item) { shared.open(item) }
+
+    let session: EditorSession
+    private var canvas: CanvasView
+    private let scrollView: NSScrollView
+    private var magnifyObserver: NSObjectProtocol?
+    private var hasBeenShown = false
+
+    var model: EditorModel { session.model }
+
+    private init() {
+        let placeholder = EditorModel(image: Self.blankImage(), pixelScale: 1)
+        session = EditorSession(model: placeholder)
+        canvas = CanvasView(model: placeholder)
         scrollView = NSScrollView()
         scrollView.contentView = CenteringClipView()
         scrollView.documentView = canvas
@@ -44,13 +58,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .underPageBackgroundColor
 
-        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 900, height: 640),
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 1100, height: 720),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
-        window.title = title
-        window.minSize = CGSize(width: 780, height: 420)
+        window.title = "RasterNest"
+        window.minSize = CGSize(width: 960, height: 480)
         window.isReleasedWhenClosed = false
         window.tabbingMode = .disallowed
+        window.setFrameAutosaveName("RasterNestEditor")
         super.init(window: window)
         window.delegate = self
 
@@ -64,7 +79,12 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
             zoomOut: { [weak self] in self?.zoomOut(nil) },
             dragItem: { [weak self] in self?.dragItemProvider() ?? NSItemProvider() }
         )
-        let host = NSHostingView(rootView: EditorView(model: model, scrollView: scrollView, actions: actions))
+        let root = EditorRootView(
+            session: session, library: CaptureLibrary.shared, scrollView: scrollView, actions: actions,
+            onSelect: { [weak self] item in self?.open(item) },
+            onTrash: { [weak self] item in self?.trash(item) }
+        )
+        let host = NSHostingView(rootView: root)
         host.sizingOptions = []
         window.contentView = host
 
@@ -77,23 +97,81 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
+    // MARK: Switching captures
+
+    func open(_ item: CaptureLibrary.Item) {
+        if session.item?.id != item.id {
+            commitCurrent()
+            do {
+                let loaded = try CaptureLibrary.shared.load(item)
+                install(EditorModel(image: loaded.image, pixelScale: loaded.scale,
+                                    annotations: loaded.annotations, fileURL: item.documentURL), item: item)
+            } catch {
+                present(error)
+                return
+            }
+        }
+        present()
+    }
+
+    private func install(_ model: EditorModel, item: CaptureLibrary.Item) {
+        session.model = model
+        session.item = item
+        canvas = CanvasView(model: model)
+        scrollView.documentView = canvas
+        window?.title = item.name
+        window?.representedURL = item.isExternal ? item.documentURL : nil
+        window?.makeFirstResponder(canvas)
+        DispatchQueue.main.async { self.zoomToFit() }
+    }
+
+    /// Saves the current capture if it changed.
+    func commitCurrent() {
+        guard let item = session.item, model.isDirty else { return }
+        do {
+            session.item = try CaptureLibrary.shared.save(model, as: item)
+            model.markSaved()
+        } catch {
+            NSLog("RasterNest: could not save \(item.name): \(error)")
+        }
+    }
+
+    private func trash(_ item: CaptureLibrary.Item) {
+        let library = CaptureLibrary.shared
+        let wasCurrent = session.item?.id == item.id
+        let index = library.items.firstIndex { $0.id == item.id } ?? 0
+        if wasCurrent { model.markSaved() }   // don't resurrect it on the next commit
+        library.moveToTrash(item)
+        guard wasCurrent else { return }
+        session.item = nil
+        if library.items.isEmpty {
+            window?.close()
+        } else {
+            open(library.items[min(index, library.items.count - 1)])
+        }
+    }
+
     private func present() {
         guard let window else { return }
-        let visible = (NSScreen.underMouse ?? NSScreen.main)?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
-        let points = CGSize(width: CGFloat(model.image.width) / model.pixelScale,
-                            height: CGFloat(model.image.height) / model.pixelScale)
-        let width = min(max(points.width + 60, 860), visible.width * 0.92)
-        let height = min(max(points.height + 150, 520), visible.height * 0.92)
-        window.setContentSize(CGSize(width: width, height: height))
-        let cascade = CGFloat((Self.openControllers.count - 1) % 6) * 24
-        window.setFrameOrigin(CGPoint(x: visible.midX - window.frame.width / 2 + cascade,
-                                      y: visible.midY - window.frame.height / 2 - cascade))
+        if !hasBeenShown {
+            hasBeenShown = true
+            if !window.setFrameUsingName("RasterNestEditor") {
+                let visible = (NSScreen.underMouse ?? NSScreen.main)?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+                let size = CGSize(width: min(1280, visible.width * 0.88), height: min(860, visible.height * 0.88))
+                window.setFrame(CGRect(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2,
+                                       width: size.width, height: size.height), display: false)
+            }
+        }
         ActivationPolicy.becomeRegular()
         showWindow(nil)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         window.makeFirstResponder(canvas)
-        DispatchQueue.main.async { self.zoomToFit() }
+    }
+
+    private func present(_ error: Error) {
+        NSApp.activate(ignoringOtherApps: true)
+        NSAlert(error: error).runModal()
     }
 
     // MARK: Zoom
@@ -105,7 +183,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         guard w > 0, h > 0, available.width > 0 else { return }
         var m = min((available.width - 32) / w, (available.height - 32) / h)
         m = min(m, 1 / model.pixelScale)   // never blow small captures past 100%
+        // Very tall captures (scrolling) fit to width instead, so they stay readable.
+        if h / w > 3 { m = min((available.width - 32) / w, 1 / model.pixelScale) }
         setMagnification(max(m, 0.05))
+        if h / w > 3 { canvas.scroll(.zero) }
     }
 
     private func setMagnification(_ m: CGFloat) {
@@ -129,7 +210,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     @objc func copy(_ sender: Any?) {
         guard let image = model.flattened() else { return }
         ImageExport.copyToPasteboard(image, scale: model.pixelScale)
-        model.markSaved()
+        commitCurrent()
         HUD.show("Copied to clipboard")
     }
 
@@ -139,12 +220,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: Save / export
 
+    /// Captures save themselves; ⌘S just does it now.
     @objc func saveDocument(_ sender: Any?) {
-        if let url = model.fileURL {
-            write(to: url)
-        } else {
-            saveDocumentAs(sender)
-        }
+        commitCurrent()
+        HUD.show("Saved", symbol: "checkmark.circle.fill", duration: 0.9)
     }
 
     @objc func saveDocumentAs(_ sender: Any?) {
@@ -152,29 +231,17 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.rasterNestDocument]
         panel.nameFieldStringValue = baseName + "." + NestDocument.fileExtension
-        panel.message = "A .rasternest file keeps your annotations editable."
+        panel.message = "Saves an editable copy of this capture."
         panel.beginSheetModal(for: window) { [weak self] response in
-            guard let self else { return }
-            if response == .OK, let url = panel.url {
-                self.write(to: url)
-            } else {
-                self.closeAfterSave = false
+            guard let self, response == .OK, let url = panel.url else { return }
+            do {
+                guard let doc = self.model.makeDocument() else { throw CocoaError(.fileWriteUnknown) }
+                try doc.encoded().write(to: url, options: .atomic)
+                NSDocumentController.shared.noteNewRecentDocumentURL(url)
+                HUD.show("Saved \(url.lastPathComponent)")
+            } catch {
+                NSAlert(error: error).beginSheetModal(for: window)
             }
-        }
-    }
-
-    private func write(to url: URL) {
-        do {
-            guard let doc = model.makeDocument() else { throw CocoaError(.fileWriteUnknown) }
-            try doc.encoded().write(to: url, options: .atomic)
-            model.fileURL = url
-            model.markSaved()
-            window?.title = url.lastPathComponent
-            NSDocumentController.shared.noteNewRecentDocumentURL(url)
-            if closeAfterSave { window?.close() }
-        } catch {
-            closeAfterSave = false
-            if let window { NSAlert(error: error).beginSheetModal(for: window) }
         }
     }
 
@@ -192,7 +259,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
                   let data = ImageCodec.encode(image, format: format, scale: self.model.pixelScale) else { return }
             do {
                 try data.write(to: url, options: .atomic)
-                self.model.markSaved()
+                self.commitCurrent()
                 HUD.show("Exported \(url.lastPathComponent)", symbol: "square.and.arrow.down.fill")
             } catch {
                 NSAlert(error: error).beginSheetModal(for: window)
@@ -200,11 +267,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    private var baseName: String {
-        if let url = model.fileURL { return url.deletingPathExtension().lastPathComponent }
-        let title = window?.title ?? CaptureNaming.timestampedName()
-        return (title as NSString).deletingPathExtension
-    }
+    private var baseName: String { session.item?.name ?? CaptureNaming.timestampedName() }
 
     private func dragItemProvider() -> NSItemProvider {
         guard let image = model.flattened(),
@@ -215,34 +278,25 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: Window lifecycle
 
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard model.isDirty else { return true }
-        let alert = NSAlert()
-        alert.messageText = "Keep your annotations?"
-        alert.informativeText = "You haven't copied, exported or saved this capture since editing it."
-        alert.addButton(withTitle: "Save…")
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Discard")
-        alert.beginSheetModal(for: sender) { [weak self] response in
-            guard let self else { return }
-            switch response {
-            case .alertFirstButtonReturn:
-                self.closeAfterSave = true
-                DispatchQueue.main.async { self.saveDocument(nil) }
-            case .alertThirdButtonReturn:
-                self.model.markSaved()
-                sender.close()
-            default:
-                break
-            }
-        }
-        return false
+    func windowDidResignKey(_ notification: Notification) {
+        // Keep the PNG on disk current when you switch to your docs app to paste it.
+        commitCurrent()
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        CaptureLibrary.shared.reload()
     }
 
     func windowWillClose(_ notification: Notification) {
-        if let magnifyObserver { NotificationCenter.default.removeObserver(magnifyObserver) }
-        Self.openControllers.removeAll { $0 === self }
+        commitCurrent()
         ActivationPolicy.refresh()
+    }
+
+    private static func blankImage() -> CGImage {
+        let ctx = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue)!
+        return ctx.makeImage()!
     }
 }
 

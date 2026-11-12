@@ -3,18 +3,24 @@ import RasterNestCore
 import RasterNestRender
 import UniformTypeIdentifiers
 
+/// Everything that brings an image into the editor goes through the capture library,
+/// so it shows up in the strip and saves automatically.
 @MainActor
 enum DocumentOpener {
     static func open(_ url: URL) {
+        let library = CaptureLibrary.shared
+        library.reload()
+        let inLibrary = url.deletingLastPathComponent().standardizedFileURL == library.folder.standardizedFileURL
         do {
+            let item: CaptureLibrary.Item
             if url.pathExtension.lowercased() == NestDocument.fileExtension {
-                let (doc, image) = try ImageCodec.loadDocument(url)
-                EditorWindowController.open(image: image, scale: doc.pixelScale, annotations: doc.annotations, fileURL: url)
-            } else if let (image, scale) = ImageCodec.load(url) {
-                EditorWindowController.open(image: image, scale: scale, title: url.lastPathComponent)
+                item = library.itemForDocument(url)
+            } else if inLibrary, let existing = library.item(withID: url.deletingPathExtension().standardizedFileURL.path) {
+                item = existing
             } else {
-                throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: url.path])
+                item = try library.importImage(url)
             }
+            EditorWindowController.show(item)
             NSDocumentController.shared.noteNewRecentDocumentURL(url)
         } catch {
             NSApp.activate(ignoringOtherApps: true)
@@ -34,14 +40,21 @@ enum DocumentOpener {
 
     static func openFromClipboard() {
         let pb = NSPasteboard.general
-        if let data = pb.data(forType: .png) ?? pb.data(forType: .tiff), let (image, scale) = ImageCodec.decode(data) {
-            EditorWindowController.open(image: image, scale: scale)
+        var loaded: (CGImage, CGFloat)?
+        if let data = pb.data(forType: .png) ?? pb.data(forType: .tiff) {
+            loaded = ImageCodec.decode(data)
         } else if let ns = pb.readObjects(forClasses: [NSImage.self])?.first as? NSImage,
                   let image = ns.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            let scale = max(1, CGFloat(image.width) / max(ns.size.width, 1))
-            EditorWindowController.open(image: image, scale: scale)
-        } else {
+            loaded = (image, max(1, CGFloat(image.width) / max(ns.size.width, 1)))
+        }
+        guard let (image, scale) = loaded else {
             HUD.show("No image on the clipboard", symbol: "exclamationmark.circle")
+            return
+        }
+        do {
+            EditorWindowController.show(try CaptureLibrary.shared.addCapture(image: image, scale: scale))
+        } catch {
+            NSAlert(error: error).runModal()
         }
     }
 }

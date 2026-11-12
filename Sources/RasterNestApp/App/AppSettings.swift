@@ -9,11 +9,12 @@ final class AppSettings: ObservableObject {
     private enum Keys {
         static let openEditor = "openEditor"
         static let copyToClipboard = "copyToClipboard"
-        static let autoSave = "autoSave"
+        static let keepPNG = "keepPNG"
         static let saveFolder = "saveFolder"
         static let captureHotKey = "hotKey.capture"
         static let fullScreenHotKey = "hotKey.fullScreen"
         static let textHotKey = "hotKey.text"
+        static let scrollingHotKey = "hotKey.scrolling"
         static let hasOnboarded = "hasOnboarded"
     }
 
@@ -21,12 +22,13 @@ final class AppSettings: ObservableObject {
 
     @Published var openEditor: Bool { didSet { defaults.set(openEditor, forKey: Keys.openEditor) } }
     @Published var copyToClipboard: Bool { didSet { defaults.set(copyToClipboard, forKey: Keys.copyToClipboard) } }
-    @Published var autoSave: Bool { didSet { defaults.set(autoSave, forKey: Keys.autoSave) } }
+    @Published var keepPNG: Bool { didSet { defaults.set(keepPNG, forKey: Keys.keepPNG) } }
     @Published var saveFolder: URL { didSet { defaults.set(saveFolder.path, forKey: Keys.saveFolder) } }
 
     @Published var captureHotKey: HotKeyCombo? { didSet { store(captureHotKey, Keys.captureHotKey) } }
     @Published var fullScreenHotKey: HotKeyCombo? { didSet { store(fullScreenHotKey, Keys.fullScreenHotKey) } }
     @Published var textHotKey: HotKeyCombo? { didSet { store(textHotKey, Keys.textHotKey) } }
+    @Published var scrollingHotKey: HotKeyCombo? { didSet { store(scrollingHotKey, Keys.scrollingHotKey) } }
 
     var hasOnboarded: Bool {
         get { defaults.bool(forKey: Keys.hasOnboarded) }
@@ -34,15 +36,16 @@ final class AppSettings: ObservableObject {
     }
 
     private init() {
-        defaults.register(defaults: [Keys.openEditor: true, Keys.copyToClipboard: true, Keys.autoSave: true])
+        defaults.register(defaults: [Keys.openEditor: true, Keys.copyToClipboard: true, Keys.keepPNG: true])
         openEditor = defaults.bool(forKey: Keys.openEditor)
         copyToClipboard = defaults.bool(forKey: Keys.copyToClipboard)
-        autoSave = defaults.bool(forKey: Keys.autoSave)
+        keepPNG = defaults.bool(forKey: Keys.keepPNG)
         saveFolder = defaults.string(forKey: Keys.saveFolder).map { URL(fileURLWithPath: $0, isDirectory: true) }
             ?? CaptureNaming.defaultCaptureFolder()
         captureHotKey = Self.loadCombo(Keys.captureHotKey, fallback: .defaultCapture)
         fullScreenHotKey = Self.loadCombo(Keys.fullScreenHotKey, fallback: .defaultFullScreen)
         textHotKey = Self.loadCombo(Keys.textHotKey, fallback: .defaultText)
+        scrollingHotKey = Self.loadCombo(Keys.scrollingHotKey, fallback: .defaultScrolling)
     }
 
     private func store(_ combo: HotKeyCombo?, _ key: String) {

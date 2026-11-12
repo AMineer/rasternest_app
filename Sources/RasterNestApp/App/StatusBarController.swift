@@ -31,6 +31,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(withHotKey("Capture Full Screen", s.fullScreenHotKey) { [weak self] in
             self?.capture.captureFullScreen(fromMenu: true)
         })
+        menu.addItem(withHotKey("Scrolling Capture", s.scrollingHotKey) { [weak self] in
+            self?.capture.startScrolling(fromMenu: true)
+        })
         menu.addItem(withHotKey("Grab Text", s.textHotKey) { [weak self] in
             self?.capture.startInteractive(mode: .text, fromMenu: true)
         })
@@ -49,7 +52,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(ActionMenuItem("New from Clipboard") { DocumentOpener.openFromClipboard() })
         menu.addItem(ActionMenuItem("Open…") { DocumentOpener.presentOpenPanel() })
 
-        let recent = ImageExport.recentCaptures()
+        let library = CaptureLibrary.shared
+        library.reload()
+        let recent = Array(library.items.prefix(8))
         let recentItem = NSMenuItem(title: "Recent Captures", action: nil, keyEquivalent: "")
         let recentMenu = NSMenu()
         if recent.isEmpty {
@@ -57,9 +62,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             empty.isEnabled = false
             recentMenu.addItem(empty)
         } else {
-            for url in recent {
-                let entry = ActionMenuItem(url.deletingPathExtension().lastPathComponent) { DocumentOpener.open(url) }
-                if let thumb = NSImage(contentsOf: url) {
+            for item in recent {
+                let entry = ActionMenuItem(item.name) { EditorWindowController.show(item) }
+                if let thumb = library.thumbnails[item.id]?.copy() as? NSImage {
                     thumb.size = NSSize(width: 32, height: 32 * thumb.size.height / max(thumb.size.width, 1))
                     entry.image = thumb
                 }

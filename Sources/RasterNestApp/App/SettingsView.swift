@@ -37,6 +37,7 @@ struct SettingsView: View {
             Section("Shortcuts") {
                 shortcutRow("Capture area or window", $settings.captureHotKey)
                 shortcutRow("Capture full screen", $settings.fullScreenHotKey)
+                shortcutRow("Scrolling capture", $settings.scrollingHotKey)
                 shortcutRow("Grab text (OCR)", $settings.textHotKey)
                 Text("Click a shortcut and press new keys. ⌫ clears it.")
                     .font(.caption)
@@ -46,7 +47,8 @@ struct SettingsView: View {
             Section("After capturing") {
                 Toggle("Open in the editor", isOn: $settings.openEditor)
                 Toggle("Copy to the clipboard", isOn: $settings.copyToClipboard)
-                Toggle("Save a copy to the captures folder", isOn: $settings.autoSave)
+                Toggle("Keep a PNG of each capture next to its editable file", isOn: $settings.keepPNG)
+                    .help("RasterNest saves every capture to the captures folder. With this on, a PNG with your annotations sits beside each one and updates as you edit, ready to drop into docs.")
                 HStack {
                     Text(settings.saveFolder.path)
                         .lineLimit(1)
@@ -122,6 +124,9 @@ struct SettingsView: View {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.directoryURL = settings.saveFolder
-        if panel.runModal() == .OK, let url = panel.url { settings.saveFolder = url }
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.saveFolder = url
+            CaptureLibrary.shared.reload()
+        }
     }
 }

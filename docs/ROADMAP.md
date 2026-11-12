@@ -11,7 +11,8 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ✅ Global, customizable hotkeys
 - ✅ CLI capture on macOS and Linux
 - ⬜ Adjust the selection after dragging (handles, arrow-key nudge) before confirming
-- ⬜ Scrolling / panoramic capture
+- ✅ Scrolling capture (manual scroll, sticky header/footer detection)
+- ⬜ Auto-scrolling capture and `rnest capture --scrolling`
 - ⬜ Screen recording to MP4/GIF (`SCRecordingOutput`) with mic + system audio
 - ⬜ Capture the cursor (optional)
 - ⬜ Capture presets / profiles
@@ -32,6 +33,7 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 ## Library & sharing
 - ✅ Auto-save to folder, recent captures menu
 - ✅ Copy, drag-out, export PNG/JPEG, editable `.rasternest` files
+- ✅ One editor window with a strip of recent captures; autosave with rendered PNGs
 - ⬜ Library browser with tags and search
 - ⬜ Share targets (upload to S3, Imgur, Slack, custom webhook)
 - ⬜ PDF export

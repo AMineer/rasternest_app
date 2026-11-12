@@ -35,6 +35,7 @@ enum MainMenu {
         main.addItem(submenu("File", [
             item("Capture Area or Window", "captureArea:"),
             item("Capture Full Screen", "captureFullScreen:"),
+            item("Scrolling Capture", "captureScrolling:"),
             item("Grab Text", "grabText:"),
             .separator(),
             item("New from Clipboard", "newFromClipboard:", "n"),

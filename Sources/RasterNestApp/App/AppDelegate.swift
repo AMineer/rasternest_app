@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainMenu.install()
+        CaptureLibrary.shared.reload()
         statusBar = StatusBarController(capture: capture)
         registerHotKeys()
         hotKeyObserver = NotificationCenter.default.addObserver(forName: AppSettings.hotKeysChanged, object: nil, queue: .main) { [weak self] _ in
@@ -53,7 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let combo = s.captureHotKey { center.register(combo) { [weak self] in self?.capture.startInteractive() } }
         if let combo = s.fullScreenHotKey { center.register(combo) { [weak self] in self?.capture.captureFullScreen() } }
         if let combo = s.textHotKey { center.register(combo) { [weak self] in self?.capture.startInteractive(mode: .text) } }
+        if let combo = s.scrollingHotKey { center.register(combo) { [weak self] in self?.capture.startScrolling() } }
         statusBar?.refresh()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        EditorWindowController.commitIfOpen()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -71,6 +77,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "capture": capture.startInteractive(delay: delay)
         case "fullscreen": capture.captureFullScreen()
         case "text": capture.startInteractive(mode: .text)
+        case "scrolling":
+            let rect = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "rect" })?.value?
+                .split(separator: ",").compactMap { Double($0) }
+            if let r = rect, r.count == 4 {
+                capture.startScrolling(globalRect: CGRect(x: r[0], y: r[1], width: r[2], height: r[3]))
+            } else {
+                capture.startScrolling()
+            }
         case "settings": SettingsWindowController.shared.show()
         default: break
         }
@@ -81,6 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func captureArea(_ sender: Any?) { capture.startInteractive(fromMenu: true) }
     @objc func captureFullScreen(_ sender: Any?) { capture.captureFullScreen(fromMenu: true) }
     @objc func grabText(_ sender: Any?) { capture.startInteractive(mode: .text, fromMenu: true) }
+    @objc func captureScrolling(_ sender: Any?) { capture.startScrolling(fromMenu: true) }
     @objc func newFromClipboard(_ sender: Any?) { DocumentOpener.openFromClipboard() }
     @objc func openDocument(_ sender: Any?) { DocumentOpener.presentOpenPanel() }
     @objc func showSettings(_ sender: Any?) { SettingsWindowController.shared.show() }

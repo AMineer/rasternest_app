@@ -26,8 +26,14 @@
 **Capture (⌃⇧C by default)**
 - All-in-one: hover to highlight a window and click to capture it; drag to capture an area; Space captures the whole display
 - Frozen screen while you select, a pixel magnifier, and live size readout
+- **Scrolling capture** (⌃⇧S): pick the area that scrolls, scroll, and get one tall image. Sticky headers appear once
 - Full screen (⌃⇧F), delayed capture (3/5/10 s), and **Grab Text** OCR (⌃⇧T) straight to the clipboard
 - Each capture is copied to the clipboard, saved to `~/Pictures/RasterNest`, and opened in the editor (each step can be turned off)
+
+**One editor for all your captures**
+- A strip of recent captures sits beside the editor. Click any one to go back and change it
+- Edits save automatically: every capture is an editable `.rasternest` file with an up-to-date `.png` beside it, ready for docs
+- Drag a thumbnail straight into Slack, Notion or a doc
 
 **Markup**
 - Arrow, line, rectangle, ellipse, highlighter, text and callouts, numbered steps, pixelate (redact), spotlight, pen, crop
@@ -99,6 +105,8 @@ open "rasternest://capture"            # all-in-one capture
 open "rasternest://capture?delay=5"
 open "rasternest://fullscreen"
 open "rasternest://text"               # grab text
+open "rasternest://scrolling"          # scrolling capture (again to finish)
+open "rasternest://scrolling?rect=0,120,900,700"   # scroll-capture an exact area
 ```
 
 ## Docs

@@ -34,6 +34,7 @@ struct HotKeyCombo: Codable, Equatable {
     static let defaultCapture = HotKeyCombo(keyCode: UInt32(kVK_ANSI_C), modifiers: UInt32(controlKey | shiftKey), key: "C")
     static let defaultFullScreen = HotKeyCombo(keyCode: UInt32(kVK_ANSI_F), modifiers: UInt32(controlKey | shiftKey), key: "F")
     static let defaultText = HotKeyCombo(keyCode: UInt32(kVK_ANSI_T), modifiers: UInt32(controlKey | shiftKey), key: "T")
+    static let defaultScrolling = HotKeyCombo(keyCode: UInt32(kVK_ANSI_S), modifiers: UInt32(controlKey | shiftKey), key: "S")
 
     static func carbonModifiers(_ flags: NSEvent.ModifierFlags) -> UInt32 {
         var m: UInt32 = 0
