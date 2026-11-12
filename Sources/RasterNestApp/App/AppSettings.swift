@@ -21,6 +21,8 @@ final class AppSettings: ObservableObject {
         static let showClicks = "showClicks"
         static let adjustBeforeCapture = "adjustBeforeCapture"
         static let defaultFrame = "defaultFrame"
+        static let showKeystrokes = "showKeystrokes"
+        static let showAllTyping = "showAllTyping"
         static let hasOnboarded = "hasOnboarded"
     }
 
@@ -40,6 +42,8 @@ final class AppSettings: ObservableObject {
     @Published var recordMicrophone: Bool { didSet { defaults.set(recordMicrophone, forKey: Keys.recordMicrophone) } }
     @Published var showClicks: Bool { didSet { defaults.set(showClicks, forKey: Keys.showClicks) } }
     @Published var adjustBeforeCapture: Bool { didSet { defaults.set(adjustBeforeCapture, forKey: Keys.adjustBeforeCapture) } }
+    @Published var showKeystrokes: Bool { didSet { defaults.set(showKeystrokes, forKey: Keys.showKeystrokes) } }
+    @Published var showAllTyping: Bool { didSet { defaults.set(showAllTyping, forKey: Keys.showAllTyping) } }
 
     /// Frame applied to new captures (in points; scaled per capture). nil = no frame.
     @Published var defaultFrame: CanvasEffects? {
@@ -82,6 +86,8 @@ final class AppSettings: ObservableObject {
         recordMicrophone = defaults.bool(forKey: Keys.recordMicrophone)
         showClicks = defaults.bool(forKey: Keys.showClicks)
         adjustBeforeCapture = defaults.bool(forKey: Keys.adjustBeforeCapture)
+        showKeystrokes = defaults.bool(forKey: Keys.showKeystrokes)
+        showAllTyping = defaults.bool(forKey: Keys.showAllTyping)
         defaultFrame = defaults.data(forKey: Keys.defaultFrame).flatMap { try? JSONDecoder().decode(CanvasEffects.self, from: $0) }
     }
 

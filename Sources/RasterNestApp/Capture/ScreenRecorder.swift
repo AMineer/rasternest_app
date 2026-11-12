@@ -13,6 +13,8 @@ final class RecordingSession: NSObject {
         var systemAudio = false
         var microphone = false
         var showClicks = true
+        var showKeystrokes = false
+        var showAllTyping = false
     }
 
     /// Called once with the finished file (nil when discarded or failed).
@@ -30,6 +32,7 @@ final class RecordingSession: NSObject {
     private var writer: RecordingWriter?
     private var border: NSPanel?
     private var panel: NSPanel?
+    private var keystrokes: KeystrokeOverlay?
     private let state = RecordingState()
     private var timer: Timer?
     private var finished = false
@@ -45,10 +48,23 @@ final class RecordingSession: NSObject {
     }
 
     func start() async throws {
+        // The keystroke overlay is the one RasterNest window that should appear in the video.
+        if options.showKeystrokes {
+            if KeystrokeOverlay.isPermitted {
+                let overlay = KeystrokeOverlay(regionInScreen: regionInScreen, showAllTyping: options.showAllTyping)
+                overlay.show()
+                keystrokes = overlay
+            } else {
+                KeystrokeOverlay.requestPermission()
+                HUD.show("Allow RasterNest in Accessibility settings to show keystrokes", symbol: "keyboard", duration: 3)
+            }
+        }
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = content.displays.first(where: { $0.displayID == displayID }) else { throw CaptureError.noDisplays }
         let ownApps = content.applications.filter { $0.processID == ProcessInfo.processInfo.processIdentifier }
-        let filter = SCContentFilter(display: display, excludingApplications: ownApps, exceptingWindows: [])
+        let keystrokeWindowID = keystrokes.map { CGWindowID($0.panel.windowNumber) }
+        let included = content.windows.filter { $0.windowID == keystrokeWindowID }
+        let filter = SCContentFilter(display: display, excludingApplications: ownApps, exceptingWindows: included)
 
         // H.264 needs even dimensions; keep the longer side within 3840 px.
         var pixelScale = scale
@@ -111,6 +127,8 @@ final class RecordingSession: NSObject {
         timer?.invalidate()
         border?.orderOut(nil)
         panel?.orderOut(nil)
+        keystrokes?.close()
+        keystrokes = nil
         border = nil
         panel = nil
         let stream = self.stream, writer = self.writer

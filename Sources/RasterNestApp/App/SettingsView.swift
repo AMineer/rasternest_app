@@ -71,6 +71,22 @@ struct SettingsView: View {
 
             Section("Screen recording") {
                 Toggle("Record system audio", isOn: $settings.recordSystemAudio)
+                Toggle("Show keystrokes in recordings", isOn: Binding(
+                    get: { settings.showKeystrokes },
+                    set: { on in
+                        settings.showKeystrokes = on
+                        if on && !KeystrokeOverlay.isPermitted { KeystrokeOverlay.requestPermission() }
+                    }
+                ))
+                if settings.showKeystrokes {
+                    Toggle("Include ordinary typing (not just shortcuts)", isOn: $settings.showAllTyping)
+                        .padding(.leading, 18)
+                    Text(KeystrokeOverlay.isPermitted
+                         ? "Shortcuts and keys like Return or Esc appear at the bottom of the recording."
+                         : "Needs Accessibility permission: System Settings › Privacy & Security › Accessibility.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if #available(macOS 15.0, *) {
                     Toggle("Record microphone", isOn: $settings.recordMicrophone)
                     Toggle("Highlight mouse clicks", isOn: $settings.showClicks)

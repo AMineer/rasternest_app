@@ -85,7 +85,8 @@ final class CaptureCoordinator {
         }
         let s = AppSettings.shared
         let options = RecordingSession.Options(systemAudio: s.recordSystemAudio, microphone: s.recordMicrophone,
-                                               showClicks: s.showClicks)
+                                               showClicks: s.showClicks, showKeystrokes: s.showKeystrokes,
+                                               showAllTyping: s.showAllTyping)
         let session = RecordingSession(screen: screen, displayID: displayID, region: rect,
                                        scale: scale, options: options)
         session.onFinish = { [weak self] url in
