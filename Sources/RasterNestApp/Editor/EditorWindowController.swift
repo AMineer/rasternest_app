@@ -275,11 +275,16 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         panel.nameFieldStringValue = baseName + ".png"
         panel.beginSheetModal(for: window) { [weak self] response in
             guard let self, response == .OK, let url = panel.url else { return }
-            let format = ExportFormat(fileExtension: url.pathExtension) ?? formatPicker.format
-            guard let image = self.model.flattened(),
-                  let data = ImageCodec.encode(image, format: format, scale: self.model.pixelScale) else { return }
+            guard let image = self.model.flattened() else { return }
             do {
-                try data.write(to: url, options: .atomic)
+                if url.pathExtension.lowercased() == "pdf" || formatPicker.isPDF {
+                    try PDFComposer.write([PDFComposer.Page(image: image, scale: self.model.pixelScale)], to: url,
+                                          title: url.deletingPathExtension().lastPathComponent)
+                } else {
+                    let format = ExportFormat(fileExtension: url.pathExtension) ?? formatPicker.format
+                    guard let data = ImageCodec.encode(image, format: format, scale: self.model.pixelScale) else { return }
+                    try data.write(to: url, options: .atomic)
+                }
                 self.commitCurrent()
                 HUD.show("Exported \(url.lastPathComponent)", symbol: "square.and.arrow.down.fill")
             } catch {
@@ -331,12 +336,13 @@ private final class FormatPicker: NSObject {
     private let baseName: String
 
     var format: ExportFormat { popup.indexOfSelectedItem == 1 ? .jpg : .png }
+    var isPDF: Bool { popup.indexOfSelectedItem == 2 }
 
     init(panel: NSSavePanel, baseName: String) {
         self.panel = panel
         self.baseName = baseName
         let label = NSTextField(labelWithString: "Format:")
-        popup.addItems(withTitles: ["PNG", "JPEG"])
+        popup.addItems(withTitles: ["PNG", "JPEG", "PDF"])
         let stack = NSStackView(views: [label, popup])
         stack.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
         view = stack
@@ -349,7 +355,7 @@ private final class FormatPicker: NSObject {
 
     @objc private func changed() {
         guard let panel else { return }
-        panel.allowedContentTypes = [format.utType]
-        panel.nameFieldStringValue = baseName + "." + format.rawValue
+        panel.allowedContentTypes = [isPDF ? .pdf : format.utType]
+        panel.nameFieldStringValue = baseName + "." + (isPDF ? "pdf" : format.rawValue)
     }
 }

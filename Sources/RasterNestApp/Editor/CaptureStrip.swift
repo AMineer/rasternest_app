@@ -34,6 +34,7 @@ struct CaptureStrip: View {
     let selectedID: String?
     let onSelect: (CaptureLibrary.Item) -> Void
     let onTrash: (CaptureLibrary.Item) -> Void
+    @State private var showPDF = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -45,6 +46,10 @@ struct CaptureStrip: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button { showPDF = true } label: { Image(systemName: "doc.richtext") }
+                    .buttonStyle(.borderless)
+                    .help("Combine captures into a PDF")
+                    .disabled(library.items.allSatisfy(\.isVideo))
                 Button {
                     try? FileManager.default.createDirectory(at: library.folder, withIntermediateDirectories: true)
                     NSWorkspace.shared.open(library.folder)
@@ -88,6 +93,7 @@ struct CaptureStrip: View {
         }
         .frame(width: 172)
         .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(isPresented: $showPDF) { PDFExportSheet(library: library) }
     }
 
     @ViewBuilder

@@ -165,19 +165,26 @@ struct OCR: AsyncParsableCommand {
 
 struct Export: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Flatten a .rasternest document or convert an image to PNG/JPEG, or a recording to GIF.",
+        abstract: "Flatten captures to PNG/JPEG, combine them into a PDF, or turn a recording into a GIF.",
         discussion: """
         Examples:
           rnest export notes.rasternest --format png -o notes.png
+          rnest export step1.rasternest step2.rasternest step3.png --format pdf -o guide.pdf --captions
           rnest export demo.mp4 --format gif --width 640 --fps 12
         """
     )
 
-    @Argument(help: "A .rasternest document, an image, or a recording (.mp4/.mov).")
-    var input: String
+    @Argument(help: "A .rasternest document, an image, or a recording (.mp4/.mov). Several files for --format pdf.")
+    var inputs: [String]
 
-    @Option(name: .long, help: "Output format: png or jpg (gif for recordings). Default: from --output's extension, else png (gif for recordings).")
+    @Option(name: .long, help: "Output format: png, jpg or pdf (gif for recordings). Default: from --output's extension, else png.")
     var format: String?
+
+    @Option(name: .customLong("page-size"), help: "PDF page size: fit (each page matches its image), letter or a4.")
+    var pageSize: String = "fit"
+
+    @Flag(name: .long, help: "PDF: print each file's name under its image.")
+    var captions = false
 
     @Option(name: .shortAndLong, help: "Output file. Use - for stdout. Default: next to the input.")
     var output: String?
@@ -194,9 +201,37 @@ struct Export: AsyncParsableCommand {
     @Option(name: .long, help: "GIF frame rate (recordings only).")
     var fps: Double = 12
 
+    func validate() throws {
+        if inputs.isEmpty { throw ValidationError("Give at least one file to export.") }
+        if inputs.count > 1 && !wantsPDF { throw ValidationError("Several files can only be exported together as --format pdf.") }
+    }
+
+    private var wantsPDF: Bool {
+        format?.lowercased() == "pdf" || (output.map { ($0 as NSString).pathExtension.lowercased() == "pdf" } ?? false)
+    }
+
     func run() async throws {
         #if canImport(RasterNestRender)
+        let input = inputs[0]
         let inURL = URL(fileURLWithPath: (input as NSString).expandingTildeInPath)
+        if wantsPDF {
+            guard let size = PDFComposer.PageSize(rawValue: pageSize.lowercased()) else {
+                throw ValidationError("--page-size must be fit, letter or a4.")
+            }
+            guard output != "-" else { throw ValidationError("PDF export needs an output file, not stdout.") }
+            var pages: [PDFComposer.Page] = []
+            for path in inputs {
+                let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+                let (image, scale) = try Self.flattened(url)
+                pages.append(PDFComposer.Page(image: image, scale: scale,
+                                              caption: captions ? url.deletingPathExtension().lastPathComponent : nil))
+            }
+            let outURL = output.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+                ?? inURL.deletingPathExtension().appendingPathExtension("pdf")
+            try PDFComposer.write(pages, to: outURL, pageSize: size, title: outURL.deletingPathExtension().lastPathComponent)
+            print(outURL.path)
+            return
+        }
         if ["mp4", "mov", "m4v"].contains(inURL.pathExtension.lowercased()) {
             if let format, format.lowercased() != "gif" { throw ValidationError("Recordings can only be exported as gif.") }
             guard output != "-" else { throw ValidationError("GIF export needs an output file, not stdout.") }
@@ -217,19 +252,7 @@ struct Export: AsyncParsableCommand {
             fmt = .png
         }
 
-        let image: CGImage, scale: CGFloat
-        if inURL.pathExtension.lowercased() == NestDocument.fileExtension {
-            let (doc, base) = try ImageCodec.loadDocument(inURL)
-            let renderer = AnnotationRenderer(unit: doc.pixelScale)
-            guard let flat = renderer.flatten(image: base, annotations: doc.annotations, effects: doc.effects ?? .none) else {
-                throw CaptureFailure.backendFailed("Rendering failed.")
-            }
-            image = flat
-            scale = doc.pixelScale
-        } else {
-            guard let loaded = ImageCodec.load(inURL) else { throw ValidationError("Could not read \(input).") }
-            (image, scale) = loaded
-        }
+        let (image, scale) = try Self.flattened(inURL)
 
         guard let data = ImageCodec.encode(image, format: fmt, scale: scale, quality: CGFloat(quality) / 100) else {
             throw CaptureFailure.backendFailed("Encoding failed.")
@@ -247,6 +270,22 @@ struct Export: AsyncParsableCommand {
         throw CaptureFailure.unsupported("`rnest export` currently needs macOS; Linux rendering is on the roadmap.")
         #endif
     }
+
+    #if canImport(RasterNestRender)
+    /// A document with its annotations and frame burned in, or a plain image as-is.
+    static func flattened(_ url: URL) throws -> (CGImage, CGFloat) {
+        if url.pathExtension.lowercased() == NestDocument.fileExtension {
+            let (doc, base) = try ImageCodec.loadDocument(url)
+            guard let flat = AnnotationRenderer(unit: doc.pixelScale)
+                .flatten(image: base, annotations: doc.annotations, effects: doc.effects ?? .none) else {
+                throw CaptureFailure.backendFailed("Rendering \(url.lastPathComponent) failed.")
+            }
+            return (flat, doc.pixelScale)
+        }
+        guard let loaded = ImageCodec.load(url) else { throw ValidationError("Could not read \(url.path).") }
+        return loaded
+    }
+    #endif
 }
 
 // MARK: - edit
