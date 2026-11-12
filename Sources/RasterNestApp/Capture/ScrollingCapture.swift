@@ -121,7 +121,7 @@ final class ScrollingCaptureSession: NSObject {
     }
 
     private func showBorder() {
-        let frame = regionInScreen.insetBy(dx: -4, dy: -4)
+        let frame = regionInScreen.insetBy(dx: -10, dy: -10)  // keep the border well clear of the captured pixels
         let border = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         border.isOpaque = false
         border.backgroundColor = .clear

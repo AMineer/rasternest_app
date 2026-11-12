@@ -151,7 +151,7 @@ final class RecordingSession: NSObject {
 
     private func showBorder() {
         guard !isFullDisplay else { return }
-        let border = NSPanel(contentRect: regionInScreen.insetBy(dx: -4, dy: -4),
+        let border = NSPanel(contentRect: regionInScreen.insetBy(dx: -10, dy: -10),
                              styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         border.isOpaque = false
         border.backgroundColor = .clear
