@@ -80,6 +80,8 @@ struct SettingsView: View {
                             Permissions.openScreenRecordingSettings()
                         }
                     }
+                    Button("Reset") { Permissions.resetAndRequest() }
+                        .help("Clears RasterNest's Screen Recording approval and asks again. Use this if captures keep asking for permission even though RasterNest is switched on.")
                 }
             }
 

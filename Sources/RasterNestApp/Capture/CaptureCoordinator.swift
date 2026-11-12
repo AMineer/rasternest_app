@@ -14,24 +14,26 @@ final class CaptureCoordinator {
     /// All-in-one capture (area, window or display). `fromMenu` waits for the menu to fade out.
     func startInteractive(mode: Mode = .image, delay: Int = 0, fromMenu: Bool = false) {
         guard !busy else { return }
-        guard ensurePermission() else { return }
         busy = true
-        let go: () -> Void = { [weak self] in self?.runInteractive(mode: mode) }
-        if delay > 0 {
-            HUD.countdown(seconds: delay, completion: go)
-        } else if fromMenu {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: go)
-        } else {
-            go()
+        Task {
+            guard await ensurePermission() else { busy = false; return }
+            let go: () -> Void = { [weak self] in self?.runInteractive(mode: mode) }
+            if delay > 0 {
+                HUD.countdown(seconds: delay, completion: go)
+            } else if fromMenu {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: go)
+            } else {
+                go()
+            }
         }
     }
 
     func captureFullScreen(fromMenu: Bool = false) {
         guard !busy else { return }
-        guard ensurePermission() else { return }
         busy = true
         Task {
             defer { busy = false }
+            guard await ensurePermission() else { return }
             if fromMenu { try? await Task.sleep(nanoseconds: 200_000_000) }
             do {
                 guard let screen = NSScreen.underMouse, let snap = try await snapshot(screen) else {
@@ -136,8 +138,11 @@ final class CaptureCoordinator {
 
     // MARK: Errors & permission
 
-    private func ensurePermission() -> Bool {
+    /// The preflight check can be stale right after a grant (or after a re-sign), so before
+    /// nagging, ask ScreenCaptureKit directly whether capture actually works.
+    private func ensurePermission() async -> Bool {
         if Permissions.hasScreenCapture { return true }
+        if await Permissions.screenCaptureKitWorks() { return true }
         Permissions.presentScreenRecordingAlert()
         return false
     }
