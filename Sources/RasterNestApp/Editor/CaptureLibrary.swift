@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import ImageIO
 import RasterNestCore
@@ -18,13 +19,16 @@ final class CaptureLibrary: ObservableObject {
         let name: String
         var documentURL: URL
         var imageURL: URL?
+        /// A screen recording (MP4/MOV). Recordings play in the video pane instead of the image editor.
+        var videoURL: URL?
         var date: Date
         /// A .rasternest opened from outside the captures folder; edited in place.
         var isExternal = false
 
+        var isVideo: Bool { videoURL != nil }
         var hasDocument: Bool { FileManager.default.fileExists(atPath: documentURL.path) }
         /// Best file to hand to other apps (drag, Finder).
-        var shareURL: URL { imageURL ?? documentURL }
+        var shareURL: URL { videoURL ?? imageURL ?? documentURL }
     }
 
     @Published private(set) var items: [Item] = []
@@ -32,6 +36,7 @@ final class CaptureLibrary: ObservableObject {
     private var externalItems: [Item] = []
 
     static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "heic", "tiff"]
+    static let videoExtensions: Set<String> = ["mp4", "mov"]
     static let limit = 300
 
     var folder: URL { AppSettings.shared.saveFolder }
@@ -46,7 +51,8 @@ final class CaptureLibrary: ObservableObject {
         for url in files {
             let ext = url.pathExtension.lowercased()
             let isDoc = ext == NestDocument.fileExtension
-            guard isDoc || Self.imageExtensions.contains(ext) else { continue }
+            let isVideo = Self.videoExtensions.contains(ext)
+            guard isDoc || isVideo || Self.imageExtensions.contains(ext) else { continue }
             let base = url.deletingPathExtension()
             let key = base.standardizedFileURL.path
             let values = try? url.resourceValues(forKeys: Set(keys))
@@ -54,7 +60,11 @@ final class CaptureLibrary: ObservableObject {
             var item = byBase[key] ?? Item(id: key, name: base.lastPathComponent,
                                            documentURL: base.appendingPathExtension(NestDocument.fileExtension),
                                            imageURL: nil, date: date)
-            if !isDoc, item.imageURL == nil || ext == "png" { item.imageURL = url }
+            if isVideo {
+                item.videoURL = url
+            } else if !isDoc, item.imageURL == nil || ext == "png" {
+                item.imageURL = url
+            }
             item.date = min(item.date, date)
             byBase[key] = item
         }
@@ -87,6 +97,30 @@ final class CaptureLibrary: ObservableObject {
                         documentURL: docURL, imageURL: pngURL, date: Date())
         items.insert(item, at: externalItems.count)
         thumbnails[item.id] = Self.thumbnail(data: doc.imagePNG)
+        return item
+    }
+
+    /// Moves a finished recording into the captures folder.
+    @discardableResult
+    func addRecording(_ tempURL: URL, name: String = CaptureNaming.timestampedName()) throws -> Item {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let base = uniqueBase(name)
+        let url = base.appendingPathExtension("mp4")
+        try FileManager.default.moveItem(at: tempURL, to: url)
+        let item = Item(id: base.standardizedFileURL.path, name: base.lastPathComponent,
+                        documentURL: base.appendingPathExtension(NestDocument.fileExtension),
+                        imageURL: nil, videoURL: url, date: Date())
+        items.insert(item, at: externalItems.count)
+        loadThumbnail(item)
+        return item
+    }
+
+    /// Replaces a recording's file (after trimming).
+    func replaceVideo(_ item: Item, with newFile: URL) throws -> Item {
+        guard let url = item.videoURL else { return item }
+        _ = try FileManager.default.replaceItemAt(url, withItemAt: newFile)
+        thumbnails[item.id] = nil
+        loadThumbnail(item)
         return item
     }
 
@@ -146,7 +180,8 @@ final class CaptureLibrary: ObservableObject {
     func moveToTrash(_ item: Item) {
         let fm = FileManager.default
         if !item.isExternal {
-            for url in [item.documentURL, item.imageURL].compactMap({ $0 }) where fm.fileExists(atPath: url.path) {
+            let gif = item.videoURL?.deletingPathExtension().appendingPathExtension("gif")
+            for url in [item.documentURL, item.imageURL, item.videoURL, gif].compactMap({ $0 }) where fm.fileExists(atPath: url.path) {
                 try? fm.trashItem(at: url, resultingItemURL: nil)
             }
         }
@@ -158,9 +193,14 @@ final class CaptureLibrary: ObservableObject {
     // MARK: Thumbnails
 
     private func loadThumbnail(_ item: Item) {
-        let imageURL = item.imageURL, docURL = item.documentURL, id = item.id
+        let imageURL = item.imageURL, docURL = item.documentURL, videoURL = item.videoURL, id = item.id
         Task.detached(priority: .utility) {
-            let thumb = Self.thumbnail(imageURL: imageURL, documentURL: docURL)
+            let thumb: NSImage?
+            if let videoURL {
+                thumb = await Self.videoThumbnail(videoURL)
+            } else {
+                thumb = Self.thumbnail(imageURL: imageURL, documentURL: docURL)
+            }
             await MainActor.run { if let thumb { CaptureLibrary.shared.thumbnails[id] = thumb } }
         }
     }
@@ -172,6 +212,14 @@ final class CaptureLibrary: ObservableObject {
         guard let data = try? Data(contentsOf: documentURL),
               let doc = try? NestDocument.decoded(from: data) else { return nil }
         return thumbnail(data: doc.imagePNG)
+    }
+
+    nonisolated static func videoThumbnail(_ url: URL) async -> NSImage? {
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 360, height: 360)
+        guard let cg = try? await generator.image(at: CMTime(seconds: 0.2, preferredTimescale: 600)).image else { return nil }
+        return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
     }
 
     nonisolated static func thumbnail(data: Data) -> NSImage? {
@@ -194,7 +242,8 @@ final class CaptureLibrary: ObservableObject {
         var base = folder.appendingPathComponent(name)
         var n = 2
         while fm.fileExists(atPath: base.appendingPathExtension(NestDocument.fileExtension).path)
-                || fm.fileExists(atPath: base.appendingPathExtension("png").path) {
+                || fm.fileExists(atPath: base.appendingPathExtension("png").path)
+                || fm.fileExists(atPath: base.appendingPathExtension("mp4").path) {
             base = folder.appendingPathComponent("\(name) (\(n))")
             n += 1
         }

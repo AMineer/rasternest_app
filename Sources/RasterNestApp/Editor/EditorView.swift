@@ -47,6 +47,7 @@ struct EditorView: View {
                     .disabled(!model.canRedo)
             }
             .buttonStyle(.borderless)
+            .tint(.primary)   // brand violet is for selection only; plain controls use the label color
             .id(model.historyVersion)
 
             Menu("\(model.zoomPercent)%") {
@@ -56,6 +57,7 @@ struct EditorView: View {
                 Button("Zoom Out", action: actions.zoomOut)
             }
             .menuStyle(.borderlessButton)
+            .tint(.primary)
             .fixedSize()
             .padding(.horizontal, 6)
 

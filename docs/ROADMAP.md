@@ -13,7 +13,8 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ⬜ Adjust the selection after dragging (handles, arrow-key nudge) before confirming
 - ✅ Scrolling capture (manual scroll, sticky header/footer detection)
 - ⬜ Auto-scrolling capture and `rnest capture --scrolling`
-- ⬜ Screen recording to MP4/GIF (`SCRecordingOutput`) with mic + system audio
+- ✅ Screen recording to MP4 with system audio + microphone (macOS 15), trim, GIF export
+- ⬜ Pause/resume, webcam overlay, and keystroke display while recording
 - ⬜ Capture the cursor (optional)
 - ⬜ Capture presets / profiles
 - ⬜ Color picker (hex from the magnifier)

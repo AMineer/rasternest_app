@@ -55,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let combo = s.fullScreenHotKey { center.register(combo) { [weak self] in self?.capture.captureFullScreen() } }
         if let combo = s.textHotKey { center.register(combo) { [weak self] in self?.capture.startInteractive(mode: .text) } }
         if let combo = s.scrollingHotKey { center.register(combo) { [weak self] in self?.capture.startScrolling() } }
+        if let combo = s.recordHotKey { center.register(combo) { [weak self] in self?.capture.startRecording() } }
         statusBar?.refresh()
     }
 
@@ -77,6 +78,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "capture": capture.startInteractive(delay: delay)
         case "fullscreen": capture.captureFullScreen()
         case "text": capture.startInteractive(mode: .text)
+        case "record":
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            let rect = query.first(where: { $0.name == "rect" })?.value?.split(separator: ",").compactMap { Double($0) }
+            let seconds = query.first(where: { $0.name == "seconds" })?.value.flatMap(Double.init)
+            if let r = rect, r.count == 4 {
+                capture.startRecording(globalRect: CGRect(x: r[0], y: r[1], width: r[2], height: r[3]), seconds: seconds)
+            } else {
+                capture.startRecording()
+            }
         case "scrolling":
             let rect = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                 .queryItems?.first(where: { $0.name == "rect" })?.value?
@@ -97,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func captureFullScreen(_ sender: Any?) { capture.captureFullScreen(fromMenu: true) }
     @objc func grabText(_ sender: Any?) { capture.startInteractive(mode: .text, fromMenu: true) }
     @objc func captureScrolling(_ sender: Any?) { capture.startScrolling(fromMenu: true) }
+    @objc func recordScreen(_ sender: Any?) { capture.startRecording(fromMenu: true) }
     @objc func newFromClipboard(_ sender: Any?) { DocumentOpener.openFromClipboard() }
     @objc func openDocument(_ sender: Any?) { DocumentOpener.presentOpenPanel() }
     @objc func showSettings(_ sender: Any?) { SettingsWindowController.shared.show() }

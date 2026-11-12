@@ -38,6 +38,7 @@ struct SettingsView: View {
                 shortcutRow("Capture area or window", $settings.captureHotKey)
                 shortcutRow("Capture full screen", $settings.fullScreenHotKey)
                 shortcutRow("Scrolling capture", $settings.scrollingHotKey)
+                shortcutRow("Record screen", $settings.recordHotKey)
                 shortcutRow("Grab text (OCR)", $settings.textHotKey)
                 Text("Click a shortcut and press new keys. ⌫ clears it.")
                     .font(.caption)
@@ -56,6 +57,18 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Choose…", action: chooseFolder)
+                }
+            }
+
+            Section("Screen recording") {
+                Toggle("Record system audio", isOn: $settings.recordSystemAudio)
+                if #available(macOS 15.0, *) {
+                    Toggle("Record microphone", isOn: $settings.recordMicrophone)
+                    Toggle("Highlight mouse clicks", isOn: $settings.showClicks)
+                } else {
+                    Text("Microphone recording and click highlights need macOS 15 or later.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 

@@ -35,6 +35,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     static func show(_ item: CaptureLibrary.Item) { shared.open(item) }
 
     let session: EditorSession
+    let video = VideoPaneModel()
     private var canvas: CanvasView
     private let scrollView: NSScrollView
     private var magnifyObserver: NSObjectProtocol?
@@ -80,7 +81,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
             dragItem: { [weak self] in self?.dragItemProvider() ?? NSItemProvider() }
         )
         let root = EditorRootView(
-            session: session, library: CaptureLibrary.shared, scrollView: scrollView, actions: actions,
+            session: session, library: CaptureLibrary.shared, video: video, scrollView: scrollView, actions: actions,
+            window: { [weak window] in window },
             onSelect: { [weak self] item in self?.open(item) },
             onTrash: { [weak self] item in self?.trash(item) }
         )
@@ -100,6 +102,18 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     // MARK: Switching captures
 
     func open(_ item: CaptureLibrary.Item) {
+        if item.isVideo {
+            if session.item?.id != item.id {
+                commitCurrent()
+                session.item = item
+                video.load(item)
+                window?.title = item.name
+                window?.representedURL = nil
+            }
+            present()
+            return
+        }
+        if session.item?.isVideo == true { video.unload() }
         if session.item?.id != item.id {
             commitCurrent()
             do {
@@ -127,7 +141,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     /// Saves the current capture if it changed.
     func commitCurrent() {
-        guard let item = session.item, model.isDirty else { return }
+        guard let item = session.item, !item.isVideo, model.isDirty else { return }
         do {
             session.item = try CaptureLibrary.shared.save(model, as: item)
             model.markSaved()
@@ -141,6 +155,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
         let wasCurrent = session.item?.id == item.id
         let index = library.items.firstIndex { $0.id == item.id } ?? 0
         if wasCurrent { model.markSaved() }   // don't resurrect it on the next commit
+        if wasCurrent && item.isVideo { video.unload() }
         library.moveToTrash(item)
         guard wasCurrent else { return }
         session.item = nil
@@ -207,7 +222,10 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: Edit menu
 
+    private var showingVideo: Bool { session.item?.isVideo == true }
+
     @objc func copy(_ sender: Any?) {
+        if showingVideo { video.copy(); return }
         guard let image = model.flattened() else { return }
         ImageExport.copyToPasteboard(image, scale: model.pixelScale)
         commitCurrent()
@@ -222,6 +240,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     /// Captures save themselves; ⌘S just does it now.
     @objc func saveDocument(_ sender: Any?) {
+        guard !showingVideo else { return }
         commitCurrent()
         HUD.show("Saved", symbol: "checkmark.circle.fill", duration: 0.9)
     }
@@ -246,6 +265,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
     }
 
     @objc func exportImage(_ sender: Any?) {
+        if showingVideo { video.exportMP4(from: window); return }
         guard let window else { return }
         let panel = NSSavePanel()
         let formatPicker = FormatPicker(panel: panel, baseName: baseName)
@@ -289,6 +309,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         commitCurrent()
+        video.playerView.player?.pause()
         ActivationPolicy.refresh()
     }
 

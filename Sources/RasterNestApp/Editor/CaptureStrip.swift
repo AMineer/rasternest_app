@@ -6,8 +6,10 @@ import SwiftUI
 struct EditorRootView: View {
     @ObservedObject var session: EditorSession
     @ObservedObject var library: CaptureLibrary
+    let video: VideoPaneModel
     let scrollView: NSScrollView
     let actions: EditorActions
+    let window: () -> NSWindow?
     let onSelect: (CaptureLibrary.Item) -> Void
     let onTrash: (CaptureLibrary.Item) -> Void
 
@@ -15,8 +17,12 @@ struct EditorRootView: View {
         HStack(spacing: 0) {
             CaptureStrip(library: library, selectedID: session.item?.id, onSelect: onSelect, onTrash: onTrash)
             Divider()
-            EditorView(model: session.model, scrollView: scrollView, actions: actions)
-                .id(ObjectIdentifier(session.model))
+            if session.item?.isVideo == true {
+                VideoPane(model: video, window: window)
+            } else {
+                EditorView(model: session.model, scrollView: scrollView, actions: actions)
+                    .id(ObjectIdentifier(session.model))
+            }
         }
         .tint(Brand.violetColor)
     }
@@ -94,6 +100,12 @@ struct CaptureStrip: View {
     }
 
     private func copy(_ item: CaptureLibrary.Item) {
+        if let video = item.videoURL {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects([video as NSURL])
+            HUD.show("Copied recording", symbol: "film")
+            return
+        }
         guard let url = item.imageURL, let (image, scale) = ImageCodec.load(url) else { return }
         ImageExport.copyToPasteboard(image, scale: scale)
         HUD.show("Copied to clipboard")
@@ -119,6 +131,12 @@ private struct CaptureThumb: View {
                         .padding(5)
                 } else {
                     ProgressView().controlSize(.small)
+                }
+                if item.isVideo {
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 26))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(Color.white, Color.black.opacity(0.55))
                 }
             }
             .frame(height: 100)

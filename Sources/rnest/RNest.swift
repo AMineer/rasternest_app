@@ -165,14 +165,18 @@ struct OCR: AsyncParsableCommand {
 
 struct Export: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Flatten a .rasternest document (or convert an image) to PNG or JPEG.",
-        discussion: "Example: rnest export notes.rasternest --format png -o notes.png"
+        abstract: "Flatten a .rasternest document or convert an image to PNG/JPEG, or a recording to GIF.",
+        discussion: """
+        Examples:
+          rnest export notes.rasternest --format png -o notes.png
+          rnest export demo.mp4 --format gif --width 640 --fps 12
+        """
     )
 
-    @Argument(help: "A .rasternest document or an image file.")
+    @Argument(help: "A .rasternest document, an image, or a recording (.mp4/.mov).")
     var input: String
 
-    @Option(name: .long, help: "Output format: png or jpg. Default: from --output's extension, else png.")
+    @Option(name: .long, help: "Output format: png or jpg (gif for recordings). Default: from --output's extension, else png (gif for recordings).")
     var format: String?
 
     @Option(name: .shortAndLong, help: "Output file. Use - for stdout. Default: next to the input.")
@@ -184,9 +188,25 @@ struct Export: AsyncParsableCommand {
     @Flag(name: [.customShort("c"), .long], help: "Also copy the exported image to the clipboard.")
     var clipboard = false
 
+    @Option(name: .long, help: "GIF width in pixels (recordings only). 0 keeps the original width.")
+    var width: Int = 800
+
+    @Option(name: .long, help: "GIF frame rate (recordings only).")
+    var fps: Double = 12
+
     func run() async throws {
         #if canImport(RasterNestRender)
         let inURL = URL(fileURLWithPath: (input as NSString).expandingTildeInPath)
+        if ["mp4", "mov", "m4v"].contains(inURL.pathExtension.lowercased()) {
+            if let format, format.lowercased() != "gif" { throw ValidationError("Recordings can only be exported as gif.") }
+            guard output != "-" else { throw ValidationError("GIF export needs an output file, not stdout.") }
+            let outURL = output.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+                ?? inURL.deletingPathExtension().appendingPathExtension("gif")
+            try await GIFEncoder.convert(video: inURL, to: outURL,
+                                         options: GIFEncoder.Options(fps: fps, maxWidth: width == 0 ? nil : width))
+            print(outURL.path)
+            return
+        }
         let fmt: ExportFormat
         if let format {
             guard let f = ExportFormat(fileExtension: format) else { throw ValidationError("Unknown format `\(format)`. Use png or jpg.") }

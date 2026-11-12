@@ -10,6 +10,117 @@ final class CaptureCoordinator {
 
     private var overlay: SelectionOverlayController?
     private var scrolling: ScrollingCaptureSession?
+    private var recording: RecordingSession?
+
+    /// Screen recording: pick an area, window or screen, 3-2-1, record. Triggering it again stops.
+    func startRecording(fromMenu: Bool = false) {
+        if let recording {
+            recording.stop()
+            return
+        }
+        guard !busy else { return }
+        busy = true
+        Task {
+            guard await ensurePermission() else { busy = false; return }
+            if fromMenu { try? await Task.sleep(nanoseconds: 200_000_000) }
+            do {
+                var snaps: [DisplaySnapshot] = []
+                for screen in NSScreen.screens {
+                    if let snap = try await snapshot(screen) { snaps.append(snap) }
+                }
+                guard !snaps.isEmpty else { throw CaptureError.noDisplays }
+                let controller = SelectionOverlayController()
+                overlay = controller
+                controller.begin(snapshots: snaps, windows: MacScreenCapturer.onScreenWindows(),
+                                 hint: "Drag an area to record, click a window, or press Space for the whole screen  ·  Esc to cancel") { [weak self] result in
+                    guard let self else { return }
+                    self.overlay = nil
+                    switch result {
+                    case .region(let snap, let rect): self.beginRecording(snap, rect)
+                    case .window(_, let snap, let rect): self.beginRecording(snap, rect)
+                    case .display(let snap): self.beginRecording(snap, CGRect(origin: .zero, size: snap.screen.frame.size))
+                    case .cancelled: self.busy = false
+                    }
+                }
+            } catch {
+                busy = false
+                present(error)
+            }
+        }
+    }
+
+    /// Records an exact area (global points, top-left origin) without the selection overlay,
+    /// optionally stopping after `seconds`. Used by `rasternest://record?rect=x,y,w,h&seconds=N`.
+    func startRecording(globalRect: CGRect, seconds: Double?) {
+        if let recording { recording.stop(); return }
+        guard !busy else { return }
+        busy = true
+        Task {
+            guard await ensurePermission() else { busy = false; return }
+            for screen in NSScreen.screens {
+                guard let id = screen.displayID else { continue }
+                let bounds = CGDisplayBounds(id)
+                guard bounds.contains(globalRect.origin) else { continue }
+                let local = globalRect.offsetBy(dx: -bounds.minX, dy: -bounds.minY)
+                    .intersection(CGRect(origin: .zero, size: bounds.size))
+                beginRecording(screen: screen, displayID: id, scale: CGFloat(MacScreenCapturer.scale(of: id)),
+                               rect: local, autoStopAfter: seconds)
+                return
+            }
+            busy = false
+            HUD.show("That area isn't on a display", symbol: "exclamationmark.circle")
+        }
+    }
+
+    private func beginRecording(_ snap: DisplaySnapshot, _ rect: CGRect) {
+        beginRecording(screen: snap.screen, displayID: snap.displayID, scale: snap.scale, rect: rect, autoStopAfter: nil)
+    }
+
+    private func beginRecording(screen: NSScreen, displayID: CGDirectDisplayID, scale: CGFloat, rect: CGRect,
+                                autoStopAfter seconds: Double?) {
+        guard rect.width >= 32, rect.height >= 32 else {
+            busy = false
+            HUD.show("Pick a larger area to record", symbol: "exclamationmark.circle")
+            return
+        }
+        let s = AppSettings.shared
+        let options = RecordingSession.Options(systemAudio: s.recordSystemAudio, microphone: s.recordMicrophone,
+                                               showClicks: s.showClicks)
+        let session = RecordingSession(screen: screen, displayID: displayID, region: rect,
+                                       scale: scale, options: options)
+        session.onFinish = { [weak self] url in
+            guard let self else { return }
+            self.recording = nil
+            self.busy = false
+            guard let url else { return }
+            do {
+                let item = try CaptureLibrary.shared.addRecording(url)
+                if s.copyToClipboard {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.writeObjects([item.videoURL! as NSURL])
+                }
+                EditorWindowController.show(item)
+            } catch {
+                self.present(error)
+            }
+        }
+        recording = session
+        HUD.countdown(seconds: 3) {
+            Task {
+                do {
+                    try await session.start()
+                    if let seconds, seconds > 0 {
+                        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                        session.stop()
+                    }
+                } catch {
+                    self.recording = nil
+                    self.busy = false
+                    self.present(error)
+                }
+            }
+        }
+    }
     private var busy = false
 
     /// Scrolling capture: pick the area that scrolls, then scroll; Done stitches it into one image.

@@ -34,6 +34,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(withHotKey("Scrolling Capture", s.scrollingHotKey) { [weak self] in
             self?.capture.startScrolling(fromMenu: true)
         })
+        menu.addItem(withHotKey("Record Screen", s.recordHotKey) { [weak self] in
+            self?.capture.startRecording(fromMenu: true)
+        })
         menu.addItem(withHotKey("Grab Text", s.textHotKey) { [weak self] in
             self?.capture.startInteractive(mode: .text, fromMenu: true)
         })

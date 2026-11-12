@@ -15,6 +15,10 @@ final class AppSettings: ObservableObject {
         static let fullScreenHotKey = "hotKey.fullScreen"
         static let textHotKey = "hotKey.text"
         static let scrollingHotKey = "hotKey.scrolling"
+        static let recordHotKey = "hotKey.record"
+        static let recordSystemAudio = "recordSystemAudio"
+        static let recordMicrophone = "recordMicrophone"
+        static let showClicks = "showClicks"
         static let hasOnboarded = "hasOnboarded"
     }
 
@@ -29,6 +33,10 @@ final class AppSettings: ObservableObject {
     @Published var fullScreenHotKey: HotKeyCombo? { didSet { store(fullScreenHotKey, Keys.fullScreenHotKey) } }
     @Published var textHotKey: HotKeyCombo? { didSet { store(textHotKey, Keys.textHotKey) } }
     @Published var scrollingHotKey: HotKeyCombo? { didSet { store(scrollingHotKey, Keys.scrollingHotKey) } }
+    @Published var recordHotKey: HotKeyCombo? { didSet { store(recordHotKey, Keys.recordHotKey) } }
+    @Published var recordSystemAudio: Bool { didSet { defaults.set(recordSystemAudio, forKey: Keys.recordSystemAudio) } }
+    @Published var recordMicrophone: Bool { didSet { defaults.set(recordMicrophone, forKey: Keys.recordMicrophone) } }
+    @Published var showClicks: Bool { didSet { defaults.set(showClicks, forKey: Keys.showClicks) } }
 
     var hasOnboarded: Bool {
         get { defaults.bool(forKey: Keys.hasOnboarded) }
@@ -36,7 +44,7 @@ final class AppSettings: ObservableObject {
     }
 
     private init() {
-        defaults.register(defaults: [Keys.openEditor: true, Keys.copyToClipboard: true, Keys.keepPNG: true])
+        defaults.register(defaults: [Keys.openEditor: true, Keys.copyToClipboard: true, Keys.keepPNG: true, Keys.showClicks: true])
         openEditor = defaults.bool(forKey: Keys.openEditor)
         copyToClipboard = defaults.bool(forKey: Keys.copyToClipboard)
         keepPNG = defaults.bool(forKey: Keys.keepPNG)
@@ -46,6 +54,10 @@ final class AppSettings: ObservableObject {
         fullScreenHotKey = Self.loadCombo(Keys.fullScreenHotKey, fallback: .defaultFullScreen)
         textHotKey = Self.loadCombo(Keys.textHotKey, fallback: .defaultText)
         scrollingHotKey = Self.loadCombo(Keys.scrollingHotKey, fallback: .defaultScrolling)
+        recordHotKey = Self.loadCombo(Keys.recordHotKey, fallback: .defaultRecord)
+        recordSystemAudio = defaults.bool(forKey: Keys.recordSystemAudio)
+        recordMicrophone = defaults.bool(forKey: Keys.recordMicrophone)
+        showClicks = defaults.bool(forKey: Keys.showClicks)
     }
 
     private func store(_ combo: HotKeyCombo?, _ key: String) {

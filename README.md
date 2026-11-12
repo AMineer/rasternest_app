@@ -26,6 +26,7 @@
 **Capture (⌃⇧C by default)**
 - All-in-one: hover to highlight a window and click to capture it; drag to capture an area; Space captures the whole display
 - Frozen screen while you select, a pixel magnifier, and live size readout
+- **Screen recording** (⌃⇧R): record an area, window or screen to MP4 (H.264, 30 fps) with optional system audio and microphone; trim it and export a GIF
 - **Scrolling capture** (⌃⇧S): pick the area that scrolls, scroll, and get one tall image. Sticky headers appear once
 - Full screen (⌃⇧F), delayed capture (3/5/10 s), and **Grab Text** OCR (⌃⇧T) straight to the clipboard
 - Each capture is copied to the clipboard, saved to `~/Pictures/RasterNest`, and opened in the editor (each step can be turned off)
@@ -51,6 +52,7 @@ rnest capture --fullscreen -c       # whole display → clipboard
 rnest capture --rect 0,0,800,600    # exact rectangle
 rnest capture --region --text       # OCR an area, print the text
 rnest ocr screenshot.png
+rnest export demo.mp4 --format gif --width 640   # recording → GIF
 rnest export notes.rasternest --format png
 rnest displays | rnest windows | rnest backends
 ```
@@ -105,6 +107,8 @@ open "rasternest://capture"            # all-in-one capture
 open "rasternest://capture?delay=5"
 open "rasternest://fullscreen"
 open "rasternest://text"               # grab text
+open "rasternest://record"             # record the screen (again to stop)
+open "rasternest://record?rect=0,120,900,600&seconds=10"   # record an exact area for 10 s
 open "rasternest://scrolling"          # scrolling capture (again to finish)
 open "rasternest://scrolling?rect=0,120,900,700"   # scroll-capture an exact area
 ```
