@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS app + CLI
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: swift --version
+      - name: Test
+        run: swift test
+      - name: Build app (ad-hoc signed)
+        run: SIGN_IDENTITY=- ./scripts/build-app.sh
+      - name: Smoke-test CLI
+        run: build/RasterNest.app/Contents/Helpers/rnest --version
+      - name: Zip app
+        run: ditto -c -k --keepParent build/RasterNest.app build/RasterNest-ci.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RasterNest-macos
+          path: build/RasterNest-ci.zip
+
+  linux:
+    name: Linux CLI
+    runs-on: ubuntu-24.04
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build CLI
+        run: swift build --product rnest
+      - name: Test
+        run: swift test
+      - name: Smoke-test CLI
+        run: |
+          .build/debug/rnest --version
+          .build/debug/rnest --help

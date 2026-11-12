@@ -1,0 +1,26 @@
+cask "rasternest" do
+  version "{{VERSION}}"
+  sha256 "{{SHA_DMG}}"
+
+  url "https://github.com/{{REPO}}/releases/download/v#{version}/RasterNest-#{version}.dmg"
+  name "RasterNest"
+  desc "Open-source screen capture and markup tool"
+  homepage "https://github.com/{{REPO}}"
+
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
+  depends_on macos: ">= :sonoma"
+
+  app "RasterNest.app"
+  binary "#{appdir}/RasterNest.app/Contents/Helpers/rnest"
+
+  uninstall quit: "app.rasternest.RasterNest"
+
+  zap trash: [
+    "~/Library/Preferences/app.rasternest.RasterNest.plist",
+    "~/Library/Saved Application State/app.rasternest.RasterNest.savedState",
+  ]
+end

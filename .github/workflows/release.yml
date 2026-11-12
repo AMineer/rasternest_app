@@ -1,0 +1,124 @@
+name: Release
+
+# Push a tag like v0.2.0 to build, sign, notarize and publish everything.
+#
+# Optional secrets (without them the build is ad-hoc signed and not notarized):
+#   MACOS_CERT_P12_BASE64   Developer ID Application certificate (.p12, base64)
+#   MACOS_CERT_PASSWORD     Password for the .p12
+#   MACOS_SIGN_IDENTITY     e.g. "Developer ID Application: Your Name (TEAMID)"
+#   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD   for notarization
+#   HOMEBREW_TAP_TOKEN      PAT with push access to <owner>/homebrew-tap
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-15
+    env:
+      MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set version from tag
+        run: ./scripts/set-version.sh "${GITHUB_REF_NAME#v}"
+      - name: Import signing certificate
+        if: env.MACOS_CERT_P12_BASE64 != ''
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p ci "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p ci "$KEYCHAIN"
+          echo "$MACOS_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          echo "SIGN_IDENTITY=$MACOS_SIGN_IDENTITY" >> "$GITHUB_ENV"
+      - name: Build app (universal)
+        run: UNIVERSAL=1 SIGN_IDENTITY="${SIGN_IDENTITY:--}" ./scripts/build-app.sh
+      - name: Make DMG
+        run: SIGN_IDENTITY="${SIGN_IDENTITY:--}" ./scripts/make-dmg.sh
+      - name: Notarize
+        if: env.APPLE_ID != '' && env.MACOS_CERT_P12_BASE64 != ''
+        run: ./scripts/notarize.sh "build/RasterNest-${GITHUB_REF_NAME#v}.dmg"
+      - name: Package CLI
+        run: SIGN_IDENTITY="${SIGN_IDENTITY:--}" ./scripts/package-cli.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            build/*.dmg
+            build/*.tar.gz
+
+  linux:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set version from tag
+        run: ./scripts/set-version.sh "${GITHUB_REF_NAME#v}"
+      - name: Package CLI
+        run: ./scripts/package-cli.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.runner }}
+          path: build/*.tar.gz
+
+  publish:
+    needs: [macos, linux]
+    runs-on: ubuntu-24.04
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "${GITHUB_REF_NAME#v}" > VERSION
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Stable download names (for rasternest.app links)
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          cd dist
+          cp "RasterNest-$V.dmg" RasterNest.dmg
+          cp "rnest-$V-macos-universal.tar.gz" rnest-macos-universal.tar.gz
+          cp "rnest-$V-linux-x86_64.tar.gz" rnest-linux-x86_64.tar.gz
+          cp "rnest-$V-linux-aarch64.tar.gz" rnest-linux-aarch64.tar.gz
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Render Homebrew cask + formula
+        run: ./scripts/render-homebrew.sh "$GITHUB_REPOSITORY" dist homebrew-out
+      - name: GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+            homebrew-out/Casks/rasternest.rb
+            homebrew-out/Formula/rnest.rb
+          generate_release_notes: true
+      - name: Update Homebrew tap
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        run: |
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/homebrew-tap.git" tap
+          mkdir -p tap/Casks tap/Formula
+          cp homebrew-out/Casks/rasternest.rb tap/Casks/
+          cp homebrew-out/Formula/rnest.rb tap/Formula/
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "rasternest ${GITHUB_REF_NAME}" || exit 0
+          git push

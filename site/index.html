@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RasterNest</title>
+<meta name="description" content="RasterNest is a free, open-source screen capture and markup app for macOS, with an rnest command-line tool for macOS and Linux.">
+<meta property="og:title" content="RasterNest">
+<meta property="og:description" content="Capture an area, window or screen with one shortcut. Mark it up. Send it. Free and open source.">
+<meta property="og:image" content="https://rasternest.app/assets/icon-512.png">
+<meta property="og:url" content="https://rasternest.app/">
+<meta name="theme-color" content="#0B1117" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F3F6F7" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/png" href="assets/favicon-64.png">
+<link rel="apple-touch-icon" href="assets/icon-512.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one centred column (max 1120px); hero splits copy | editor mock, collapsing to one column on phones.
+   Motif: viewfinder corner brackets, the app's capture frame. */
+:root {
+  --bg: #F3F6F7;
+  --surface: #FFFFFF;
+  --sunken: #E7EDEF;
+  --fg: #0E1A24;
+  --muted: #546874;
+  --line: #D3DDE1;
+  --teal: #0E9E99;
+  --indigo: #4540C9;
+  --coral: #F2554A;
+  --on-accent: #FFFFFF;
+  --code-bg: #0F1A22;
+  --code-fg: #DDE8EE;
+
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --step--1: 0.875rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.6rem;
+  --step-3: clamp(2rem, 4vw, 2.6rem);
+  --step-4: clamp(2.6rem, 6.4vw, 4.4rem);
+  --radius: 12px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1117; --surface: #121B23; --sunken: #18232D; --fg: #E6EEF2; --muted: #8FA3AF;
+    --line: #23323D; --teal: #2CC9C2; --indigo: #8E89FF; --coral: #FF7466; --on-accent: #06161A;
+    --code-bg: #070C10; --code-fg: #DDE8EE; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1117; --surface: #121B23; --sunken: #18232D; --fg: #E6EEF2; --muted: #8FA3AF;
+  --line: #23323D; --teal: #2CC9C2; --indigo: #8E89FF; --coral: #FF7466; --on-accent: #06161A;
+  --code-bg: #070C10; --code-fg: #DDE8EE; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 var(--step-0)/1.6 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+img, svg { max-width: 100%; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 6px; }
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
+h1 { font-size: var(--step-4); font-weight: 800; line-height: 1.02; }
+h2 { font-size: var(--step-3); font-weight: 700; line-height: 1.1; }
+h3 { font-size: var(--step-1); font-weight: 700; line-height: 1.25; }
+p { margin: 0; }
+.lede { font-size: var(--step-1); color: var(--muted); max-width: 34ch; line-height: 1.5; }
+.eyebrow {
+  font: 600 0.75rem/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
+/* Header */
+header.site {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 21; background: var(--bg); }
+.nav { display: flex; align-items: center; gap: 24px; padding-block: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 700 1.125rem/1 var(--font-display); }
+.brand img { width: 30px; height: 30px; }
+.nav-links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
+.nav-links a { text-decoration: none; color: var(--muted); font-size: var(--step--1); font-weight: 500; }
+.nav-links a:hover { color: var(--fg); }
+@media (max-width: 640px) { .nav-links a.optional { display: none; } }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 13px 20px; border-radius: 10px;
+  font: 600 var(--step-0)/1 var(--font-body); text-decoration: none;
+  border: 1px solid transparent; cursor: pointer; transition: transform .15s ease, background .15s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: var(--fg); color: var(--bg); }
+.btn-ghost { background: transparent; color: var(--fg); border-color: var(--line); }
+.btn-ghost:hover { background: var(--surface); }
+.btn svg { width: 18px; height: 18px; flex: none; }
+
+/* Hero */
+.hero { padding-block: clamp(48px, 8vw, 96px) clamp(40px, 6vw, 72px); }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(32px, 5vw, 64px); align-items: center; }
+@media (max-width: 880px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
+.hero-copy { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.hero h1 .mark { position: relative; white-space: nowrap; color: var(--coral); }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.fineprint { font-size: var(--step--1); color: var(--muted); }
+.fineprint b { color: var(--fg); font-weight: 600; }
+
+.copyline {
+  display: flex; align-items: center; gap: 10px; max-width: 100%;
+  background: var(--code-bg); color: var(--code-fg);
+  border-radius: 10px; padding: 10px 10px 10px 14px;
+  font: 400 0.9rem/1.4 var(--font-mono);
+}
+.copyline code { overflow-x: auto; white-space: nowrap; min-width: 0; flex: 1; }
+.copyline code .p { color: #6FE3DC; user-select: none; }
+.copy {
+  flex: none; border: 1px solid #2B3B47; background: #16232D; color: var(--code-fg);
+  font: 600 0.75rem/1 var(--font-body); padding: 8px 10px; border-radius: 7px; cursor: pointer;
+}
+.copy:hover { background: #1E2F3B; }
+
+/* Editor mock */
+.shot { position: relative; min-width: 0; }
+.shot svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 24px 48px rgb(9 20 28 / .22)); }
+.mock-chrome { fill: var(--surface); stroke: var(--line); }
+.mock-bar { fill: var(--sunken); }
+.mock-canvas { fill: var(--sunken); }
+.mock-tool { fill: var(--muted); opacity: .55; }
+.mock-tool-on { fill: var(--indigo); }
+.mock-text { fill: var(--muted); font: 600 11px var(--font-body); }
+
+/* Shortcut strip */
+.keys { border-block: 1px solid var(--line); background: var(--surface); }
+.keys-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.key-item { display: flex; align-items: center; gap: 14px; padding: 22px 20px; min-width: 0; }
+.key-item + .key-item { border-left: 1px solid var(--line); }
+@media (max-width: 720px) {
+  .keys-row { grid-template-columns: minmax(0, 1fr); }
+  .key-item + .key-item { border-left: 0; border-top: 1px solid var(--line); }
+}
+kbd {
+  font: 600 0.95rem/1 var(--font-mono); color: var(--fg);
+  background: var(--bg); border: 1px solid var(--line); border-bottom-width: 3px;
+  padding: 8px 10px; border-radius: 8px; white-space: nowrap;
+}
+.key-item span { color: var(--muted); font-size: var(--step--1); }
+.key-item strong { display: block; color: var(--fg); font-size: var(--step-0); font-weight: 600; }
+
+/* Sections */
+section.block { padding-block: clamp(56px, 8vw, 96px); }
+.section-head { display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; max-width: 640px; }
+.section-head p { color: var(--muted); font-size: var(--step-1); line-height: 1.5; }
+
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 760px) { .features { grid-template-columns: minmax(0, 1fr); } }
+.panel {
+  position: relative; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 28px; display: flex; flex-direction: column; gap: 18px; min-width: 0;
+}
+/* viewfinder corners on the two feature panels */
+.panel.frame::before, .panel.frame::after {
+  content: ""; position: absolute; width: 18px; height: 18px; border: 3px solid var(--coral);
+}
+.panel.frame::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 10px; }
+.panel.frame::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 10px; }
+.panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.panel li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; }
+.panel li svg { width: 18px; height: 18px; margin-top: 3px; color: var(--teal); }
+.panel li b { font-weight: 600; }
+.panel li span { color: var(--muted); }
+
+.tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.tool-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 500 var(--step--1)/1 var(--font-body); padding: 8px 10px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+}
+.tool-chip kbd { padding: 3px 6px; font-size: 0.72rem; border-bottom-width: 2px; }
+
+/* Install */
+.install { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 960px) { .install { grid-template-columns: minmax(0, 1fr); } }
+.install .panel h3 { display: flex; align-items: center; gap: 10px; }
+.install .panel p { color: var(--muted); }
+.os-tag { font: 600 0.7rem/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--indigo); }
+.dl-list { display: grid; gap: 8px; }
+.dl-list a {
+  display: flex; justify-content: space-between; gap: 10px; align-items: center;
+  text-decoration: none; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+  font: 500 var(--step--1)/1.3 var(--font-mono); background: var(--bg);
+}
+.dl-list a:hover { border-color: var(--teal); }
+.dl-list a small { color: var(--muted); font-family: var(--font-body); }
+
+/* CLI */
+.cli-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
+@media (max-width: 880px) { .cli-grid { grid-template-columns: minmax(0, 1fr); } }
+.terminal {
+  background: var(--code-bg); color: var(--code-fg); border-radius: var(--radius);
+  overflow: hidden; border: 1px solid #1C2A34; min-width: 0;
+}
+.terminal-bar { display: flex; gap: 7px; padding: 12px 14px; border-bottom: 1px solid #1C2A34; }
+.terminal-bar i { width: 11px; height: 11px; border-radius: 50%; background: #2A3A46; }
+.terminal pre { margin: 0; padding: 18px 20px; overflow-x: auto; font: 400 0.88rem/1.75 var(--font-mono); }
+.terminal .c { color: #6E8696; }
+.terminal .p { color: #6FE3DC; user-select: none; }
+.terminal .o { color: #FFB4A9; }
+
+.notes { display: grid; gap: 16px; }
+.note { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; }
+.note svg { width: 22px; height: 22px; color: var(--coral); margin-top: 2px; }
+.note p { color: var(--muted); }
+.note b { color: var(--fg); }
+
+/* Footer */
+footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--muted); font-size: var(--step--1); }
+.foot { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+.foot .spacer { flex: 1; }
+.foot a { color: var(--muted); text-decoration: none; }
+.foot a:hover { color: var(--fg); }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="#top" aria-label="RasterNest home">
+      <img src="assets/icon-512.png" alt="" width="30" height="30">
+      RasterNest
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a class="optional" href="#features">Features</a>
+      <a class="optional" href="#cli">CLI</a>
+      <a href="#install">Download</a>
+      <a class="gh-link" href="https://github.com/OWNER/rasternest_app" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow">Free · open source · macOS + Linux CLI</span>
+        <h1>Capture it. <span class="mark">Mark it up.</span> Send it.</h1>
+        <p class="lede">One shortcut grabs an area, a window or the whole screen. Arrows, callouts, step numbers and redaction are a keystroke away. Then copy, drag or export.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary dl-dmg" href="https://github.com/OWNER/rasternest_app/releases/latest/download/RasterNest.dmg">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-2.99-.79-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.89 1.15 9.14.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.78.74 2.99.72 1.24-.02 2.02-1.12 2.77-2.23.88-1.28 1.24-2.52 1.26-2.59-.03-.01-2.41-.92-2.43-3.65zM14.1 5.86c.63-.77 1.06-1.83.94-2.89-.91.04-2.02.61-2.67 1.37-.58.67-1.1 1.76-.96 2.8 1.02.08 2.06-.52 2.69-1.28z"/></svg>
+            Download for Mac
+          </a>
+          <a class="btn btn-ghost" href="#install">Other ways to install</a>
+        </div>
+        <p class="fineprint"><b class="version">Latest release</b> · macOS 14 Sonoma or later · Apple silicon and Intel · MIT licence</p>
+      </div>
+
+      <div class="shot" aria-label="The RasterNest editor with an arrow, numbered steps, a callout and a pixelated area on a screenshot">
+        <svg viewBox="0 0 640 430" role="img" aria-hidden="true">
+          <defs>
+            <pattern id="px" width="14" height="14" patternUnits="userSpaceOnUse">
+              <rect width="14" height="14" fill="#7C8C97"/><rect width="7" height="7" fill="#9AA9B3"/><rect x="7" y="7" width="7" height="7" fill="#5F707C"/>
+            </pattern>
+            <marker id="head" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="#F2554A"/>
+            </marker>
+          </defs>
+          <!-- window -->
+          <rect class="mock-chrome" x="1" y="1" width="638" height="428" rx="14"/>
+          <circle cx="22" cy="20" r="5.5" fill="#FF5F57"/><circle cx="40" cy="20" r="5.5" fill="#FEBC2E"/><circle cx="58" cy="20" r="5.5" fill="#28C840"/>
+          <text class="mock-text" x="320" y="24" text-anchor="middle">RasterNest 2026-11-11 at 09.41.27</text>
+          <!-- toolbar -->
+          <rect class="mock-bar" x="1" y="38" width="638" height="40"/>
+          <g>
+            <rect class="mock-tool" x="16" y="48" width="20" height="20" rx="5"/>
+            <rect class="mock-tool-on" x="42" y="48" width="20" height="20" rx="5"/>
+            <path d="M47 63 L57 53 M52 53 H57 V58" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <rect class="mock-tool" x="68" y="48" width="20" height="20" rx="5"/>
+            <rect class="mock-tool" x="94" y="48" width="20" height="20" rx="5"/>
+            <rect class="mock-tool" x="120" y="48" width="20" height="20" rx="5"/>
+            <rect class="mock-tool" x="146" y="48" width="20" height="20" rx="5"/>
+            <rect class="mock-tool" x="172" y="48" width="20" height="20" rx="5"/>
+            <rect class="mock-tool" x="198" y="48" width="20" height="20" rx="5"/>
+            <rect class="mock-tool" x="224" y="48" width="20" height="20" rx="5"/>
+            <rect x="520" y="49" width="50" height="18" rx="5" fill="none" stroke="var(--line)"/>
+            <text class="mock-text" x="545" y="62" text-anchor="middle">Copy</text>
+            <rect x="576" y="49" width="50" height="18" rx="5" fill="none" stroke="var(--line)"/>
+            <text class="mock-text" x="601" y="62" text-anchor="middle">Export</text>
+          </g>
+          <!-- canvas -->
+          <rect class="mock-canvas" x="1" y="78" width="638" height="350"/>
+          <!-- captured "screenshot": a settings page -->
+          <g>
+            <rect x="40" y="98" width="560" height="306" rx="8" fill="#FBFCFD" stroke="#D9E1E5"/>
+            <rect x="40" y="98" width="140" height="306" rx="8" fill="#EEF2F4"/>
+            <rect x="56" y="122" width="90" height="9" rx="4" fill="#C4CFD5"/>
+            <rect x="56" y="144" width="70" height="9" rx="4" fill="#C4CFD5"/>
+            <rect x="52" y="160" width="116" height="24" rx="6" fill="#D6E6F7"/>
+            <rect x="60" y="168" width="78" height="9" rx="4" fill="#5C8DD0"/>
+            <rect x="56" y="196" width="84" height="9" rx="4" fill="#C4CFD5"/>
+            <rect x="56" y="218" width="60" height="9" rx="4" fill="#C4CFD5"/>
+            <rect x="204" y="120" width="190" height="16" rx="5" fill="#26333D"/>
+            <rect x="204" y="152" width="370" height="54" rx="8" fill="#FFFFFF" stroke="#E1E8EC"/>
+            <rect x="220" y="168" width="150" height="9" rx="4" fill="#9AA9B3"/>
+            <rect x="220" y="184" width="210" height="8" rx="4" fill="#C9D3D9"/>
+            <rect x="520" y="168" width="38" height="20" rx="10" fill="#34C759"/>
+            <circle cx="548" cy="178" r="8" fill="#fff"/>
+            <rect x="204" y="218" width="370" height="54" rx="8" fill="#FFFFFF" stroke="#E1E8EC"/>
+            <rect x="220" y="234" width="120" height="9" rx="4" fill="#9AA9B3"/>
+            <rect x="220" y="250" width="180" height="8" rx="4" fill="#C9D3D9"/>
+            <rect x="204" y="284" width="370" height="96" rx="8" fill="#FFFFFF" stroke="#E1E8EC"/>
+            <rect x="220" y="300" width="96" height="9" rx="4" fill="#9AA9B3"/>
+          </g>
+          <!-- annotations -->
+          <rect x="198" y="146" width="382" height="66" rx="3" fill="none" stroke="#F2554A" stroke-width="3.5"/>
+          <rect x="220" y="320" width="230" height="40" fill="url(#px)" rx="2"/>
+          <path d="M150 330 C 170 270, 230 230, 300 214" fill="none" stroke="#F2554A" stroke-width="5" stroke-linecap="round" marker-end="url(#head)"/>
+          <g>
+            <circle cx="196" cy="146" r="13" fill="#F2554A" stroke="#fff" stroke-width="2.5"/>
+            <text x="196" y="151" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="14" fill="#fff">1</text>
+            <circle cx="218" cy="320" r="13" fill="#F2554A" stroke="#fff" stroke-width="2.5"/>
+            <text x="218" y="325" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="14" fill="#fff">2</text>
+          </g>
+          <g>
+            <rect x="60" y="334" width="150" height="34" rx="8" fill="#0E9E99"/>
+            <text x="135" y="356" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-weight="600" font-size="13" fill="#fff">Turn this on first</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <div class="keys">
+    <div class="wrap keys-row">
+      <div class="key-item"><kbd>⌃⇧C</kbd><div><strong>Capture area or window</strong><span>Hover to pick a window, drag for an area</span></div></div>
+      <div class="key-item"><kbd>⌃⇧F</kbd><div><strong>Capture full screen</strong><span>The display under your pointer</span></div></div>
+      <div class="key-item"><kbd>⌃⇧T</kbd><div><strong>Grab text</strong><span>Select anything; the words land on your clipboard</span></div></div>
+    </div>
+  </div>
+
+  <section class="block" id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">What it does</span>
+        <h2>Fast to capture. Fast to explain.</h2>
+        <p>RasterNest freezes your screen the moment you press the shortcut, so menus and hover states stay put while you frame the shot.</p>
+      </div>
+      <div class="features">
+        <div class="panel frame">
+          <h3>Capture</h3>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>All-in-one selection.</b> <span>Windows highlight as you hover. Click one, drag an area, or press Space for the whole display.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Pixel magnifier.</b> <span>A 15 × 15 px loupe and live size readout for exact edges.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Clean window shots.</b> <span>Windows are captured whole, even when other windows cover part of them.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Delay timer and OCR.</b> <span>Capture after 3, 5 or 10 seconds, or turn any region into copyable text.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Retina-sharp.</b> <span>Saved at full resolution with 144 dpi metadata, so images paste at the right size.</span></div></li>
+          </ul>
+        </div>
+        <div class="panel frame">
+          <h3>Mark up</h3>
+          <div class="tools" aria-label="Editor tools and their shortcuts">
+            <span class="tool-chip">Arrow <kbd>A</kbd></span>
+            <span class="tool-chip">Line <kbd>L</kbd></span>
+            <span class="tool-chip">Rectangle <kbd>R</kbd></span>
+            <span class="tool-chip">Ellipse <kbd>E</kbd></span>
+            <span class="tool-chip">Highlighter <kbd>H</kbd></span>
+            <span class="tool-chip">Text &amp; callout <kbd>T</kbd></span>
+            <span class="tool-chip">Step numbers <kbd>N</kbd></span>
+            <span class="tool-chip">Pixelate <kbd>B</kbd></span>
+            <span class="tool-chip">Spotlight <kbd>S</kbd></span>
+            <span class="tool-chip">Pen <kbd>P</kbd></span>
+            <span class="tool-chip">Crop <kbd>C</kbd></span>
+          </div>
+          <ul>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Styles that stick.</b> <span>Each tool remembers its color, width and shadow between captures.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Out the door fast.</b> <span>⌘C to copy, drag the image into Slack or a doc, or ⌘E to export PNG or JPEG.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Edit later.</b> <span>Save a <code>.rasternest</code> file to keep every annotation editable.</span></div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="install" style="background: var(--surface); border-block: 1px solid var(--line);">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Download</span>
+        <h2>Install RasterNest</h2>
+        <p>Pick whichever suits you. Every option installs the same signed build from the latest GitHub release.</p>
+      </div>
+      <div class="install">
+        <div class="panel">
+          <span class="os-tag">macOS · app</span>
+          <h3>Download the DMG</h3>
+          <p>Open it and drag RasterNest to Applications. It lives in your menu bar.</p>
+          <div class="dl-list">
+            <a class="dl-dmg" href="https://github.com/OWNER/rasternest_app/releases/latest/download/RasterNest.dmg">RasterNest.dmg <small>Universal</small></a>
+          </div>
+        </div>
+        <div class="panel">
+          <span class="os-tag">macOS · Homebrew</span>
+          <h3>Install with Homebrew</h3>
+          <p>Installs the app and adds <code>rnest</code> to your PATH.</p>
+          <div class="copyline"><code><span class="p">$ </span><span class="cmd-cask">brew install --cask OWNER/tap/rasternest</span></code><button class="copy" type="button" data-copy=".cmd-cask">Copy</button></div>
+        </div>
+        <div class="panel">
+          <span class="os-tag">Linux · CLI</span>
+          <h3>rnest for Linux</h3>
+          <p>Uses grim, gnome-screenshot, spectacle, maim or scrot, whichever you have installed.</p>
+          <div class="copyline"><code><span class="p">$ </span><span class="cmd-formula">brew install OWNER/tap/rnest</span></code><button class="copy" type="button" data-copy=".cmd-formula">Copy</button></div>
+          <div class="dl-list">
+            <a href="https://github.com/OWNER/rasternest_app/releases/latest/download/rnest-linux-x86_64.tar.gz">rnest-linux-x86_64.tar.gz <small>Intel/AMD</small></a>
+            <a href="https://github.com/OWNER/rasternest_app/releases/latest/download/rnest-linux-aarch64.tar.gz">rnest-linux-aarch64.tar.gz <small>ARM</small></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="cli">
+    <div class="wrap cli-grid">
+      <div class="section-head" style="margin-bottom: 0;">
+        <span class="eyebrow">Command line</span>
+        <h2>Script your screenshots with <code style="font-family: var(--font-mono); font-size: 0.85em;">rnest</code></h2>
+        <p>The same capture engine, ready for shell scripts, Raycast, Alfred and CI. Write files, pipe PNGs to stdout, or copy straight to the clipboard.</p>
+        <div class="notes" style="margin-top: 12px;">
+          <div class="note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+            <p><b>Screen Recording permission.</b> macOS asks the first time you capture. Allow it in System Settings › Privacy &amp; Security › Screen &amp; System Audio Recording. For <code>rnest</code>, the permission belongs to your terminal app.</p>
+          </div>
+          <div class="note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
+            <p><b>Automation links.</b> <code>open rasternest://capture</code>, <code>rasternest://fullscreen</code> and <code>rasternest://text</code> trigger the app from anywhere.</p>
+          </div>
+        </div>
+      </div>
+      <div class="terminal" role="region" aria-label="rnest examples">
+        <div class="terminal-bar"><i></i><i></i><i></i></div>
+<pre><span class="c"># drag out an area, save it to ~/Pictures/RasterNest</span>
+<span class="p">$ </span>rnest capture --region
+<span class="o">~/Pictures/RasterNest/RasterNest 2026-11-11 at 09.41.27.png</span>
+
+<span class="c"># click a window and copy it to the clipboard</span>
+<span class="p">$ </span>rnest capture --window -c
+
+<span class="c"># whole display after a 3 second delay</span>
+<span class="p">$ </span>rnest capture --fullscreen --delay 3 -o shot.png
+
+<span class="c"># read the text in an image</span>
+<span class="p">$ </span>rnest ocr screenshot.png
+
+<span class="c"># flatten an editable document</span>
+<span class="p">$ </span>rnest export notes.rasternest --format png
+
+<span class="c"># list windows, then capture one by id</span>
+<span class="p">$ </span>rnest windows
+<span class="p">$ </span>rnest capture --window-id 841</pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <a class="brand" href="#top"><img src="assets/icon-512.png" alt="" width="22" height="22"> RasterNest</a>
+    <span class="spacer"></span>
+    <a class="gh-link" href="https://github.com/OWNER/rasternest_app" rel="noopener">Source on GitHub</a>
+    <a class="gh-releases" href="https://github.com/OWNER/rasternest_app/releases" rel="noopener">Release notes</a>
+    <a class="gh-issues" href="https://github.com/OWNER/rasternest_app/issues" rel="noopener">Report an issue</a>
+    <span>MIT licence</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const REPO = "OWNER/rasternest_app";
+
+  // Copy buttons
+  document.querySelectorAll("button.copy").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const el = document.querySelector(btn.dataset.copy);
+      const text = el ? el.textContent.trim() : "";
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied";
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        btn.textContent = "Selected";
+      }
+      setTimeout(() => (btn.textContent = "Copy"), 1600);
+    });
+  });
+
+  // Show the latest version; before the first release, send people to the releases page.
+  fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: "application/vnd.github+json" } })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((rel) => {
+      const v = (rel.tag_name || "").replace(/^v/, "");
+      document.querySelectorAll(".version").forEach((el) => (el.textContent = `Version ${v}`));
+    })
+    .catch(() => {
+      document.querySelectorAll(".version").forEach((el) => (el.textContent = "First release coming soon"));
+      document.querySelectorAll("a.dl-dmg").forEach((a) => (a.href = `https://github.com/${REPO}/releases`));
+    });
+})();
+</script>
+</body>
+</html>
