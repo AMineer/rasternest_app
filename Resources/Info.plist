@@ -6,45 +6,6 @@
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>RasterNest</string>
-	<key>CFBundleExecutable</key>
-	<string>RasterNest</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
-	<key>CFBundleIdentifier</key>
-	<string>app.rasternest.RasterNest</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>RasterNest</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.productivity</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>14.0</string>
-	<key>LSUIElement</key>
-	<true/>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSSupportsAutomaticTermination</key>
-	<false/>
-	<key>NSHumanReadableCopyright</key>
-	<string>© RasterNest contributors. MIT License.</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>app.rasternest.RasterNest</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>rasternest</string>
-			</array>
-		</dict>
-	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -75,18 +36,57 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleExecutable</key>
+	<string>RasterNest</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>app.rasternest.RasterNest</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>RasterNest</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.2.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.rasternest.RasterNest</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>rasternest</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© RasterNest contributors. MIT License.</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>app.rasternest.document</string>
-			<key>UTTypeDescription</key>
-			<string>RasterNest Document</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
 				<string>public.content</string>
 			</array>
+			<key>UTTypeDescription</key>
+			<string>RasterNest Document</string>
+			<key>UTTypeIdentifier</key>
+			<string>app.rasternest.document</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

@@ -2,7 +2,7 @@ import Foundation
 
 public enum RasterNestInfo {
     /// Kept in sync with the VERSION file by `scripts/set-version.sh`.
-    public static let version = "0.1.0"
+    public static let version = "0.2.0"
     public static let name = "RasterNest"
     public static let cliName = "rnest"
     public static let bundleIdentifier = "app.rasternest.RasterNest"
