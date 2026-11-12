@@ -9,9 +9,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         self.capture = capture
         super.init()
         if let button = item.button {
-            let image = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "RasterNest")
-            image?.isTemplate = true
-            button.image = image
+            button.image = Brand.menuBarImage()
             button.toolTip = "RasterNest"
         }
         let menu = NSMenu()
@@ -79,11 +77,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(ActionMenuItem("Settings…", key: ",", modifiers: .command) { SettingsWindowController.shared.show() })
-        menu.addItem(ActionMenuItem("About RasterNest") {
-            ActivationPolicy.becomeRegular()
-            NSApp.activate(ignoringOtherApps: true)
-            NSApp.orderFrontStandardAboutPanel(nil)
-        })
+        menu.addItem(ActionMenuItem("About RasterNest") { Brand.showAbout() })
         menu.addItem(ActionMenuItem("Quit RasterNest", key: "q", modifiers: .command) { NSApp.terminate(nil) })
     }
 

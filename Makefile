@@ -1,4 +1,4 @@
-.PHONY: help build test app run cli dmg release-local icon linux-check clean
+.PHONY: help build test app run cli dmg brand linux-check clean
 
 help:
 	@echo "make build        Debug build of everything"
@@ -7,7 +7,7 @@ help:
 	@echo "make run          Build the app and launch it"
 	@echo "make cli          Build a release rnest tarball for this OS"
 	@echo "make dmg          Universal app + DMG in build/"
-	@echo "make icon         Regenerate Resources/AppIcon.icns"
+	@echo "make brand        Regenerate the icon, site images and README banners"
 	@echo "make linux-check  Build + test the Linux CLI in Docker"
 
 build:
@@ -30,8 +30,8 @@ dmg:
 	UNIVERSAL=1 ./scripts/build-app.sh
 	./scripts/make-dmg.sh
 
-icon:
-	swift scripts/generate-icon.swift Resources/AppIcon.icns
+brand:
+	swift scripts/generate-brand.swift
 
 linux-check:
 	docker run --rm -v "$(CURDIR)":/src -w /src swift:6.0 \

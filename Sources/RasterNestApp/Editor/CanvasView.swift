@@ -79,7 +79,7 @@ final class CanvasView: NSView, NSTextFieldDelegate {
     }
 
     private func drawSelection(_ a: Annotation, _ ctx: CGContext) {
-        let accent = NSColor.controlAccentColor.cgColor
+        let accent = Brand.violet.cgColor
         let m = magnification
         ctx.saveGState()
         ctx.setLineWidth(1 / m)

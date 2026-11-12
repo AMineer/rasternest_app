@@ -27,6 +27,7 @@ struct EditorView: View {
             Divider()
             ScrollViewHost(scrollView: scrollView)
         }
+        .tint(Brand.violetColor)
     }
 
     private var toolbar: some View {
@@ -95,7 +96,7 @@ private struct ToolButton: View {
                 .foregroundStyle(selected ? Color.white : Color.primary)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(selected ? Color.accentColor : Color.clear)
+                        .fill(selected ? Brand.violetColor : Color.clear)
                 )
                 .contentShape(Rectangle())
         }
@@ -208,7 +209,7 @@ private struct ColorSwatches: View {
                     .fill(Color(nsColor: color.nsColor))
                     .frame(width: 16, height: 16)
                     .overlay(Circle().stroke(Color.primary.opacity(0.25), lineWidth: 1))
-                    .overlay(Circle().stroke(Color.accentColor, lineWidth: 2).padding(-3).opacity(selected ? 1 : 0))
+                    .overlay(Circle().stroke(Brand.violetColor, lineWidth: 2).padding(-3).opacity(selected ? 1 : 0))
                     .onTapGesture { set(color) }
             }
             ColorPicker("", selection: Binding(

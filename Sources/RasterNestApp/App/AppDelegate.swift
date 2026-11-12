@@ -84,6 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func newFromClipboard(_ sender: Any?) { DocumentOpener.openFromClipboard() }
     @objc func openDocument(_ sender: Any?) { DocumentOpener.presentOpenPanel() }
     @objc func showSettings(_ sender: Any?) { SettingsWindowController.shared.show() }
+    @objc func showAbout(_ sender: Any?) { Brand.showAbout() }
 }
 
 /// The app lives in the menu bar; it shows in the Dock only while it has windows open.

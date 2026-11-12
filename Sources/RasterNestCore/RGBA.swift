@@ -26,8 +26,8 @@ public struct RGBA: Codable, Hashable, Sendable {
     public static let orange = RGBA(0.98, 0.55, 0.12)
     public static let yellow = RGBA(1.0, 0.86, 0.10)
     public static let green = RGBA(0.20, 0.72, 0.35)
-    public static let blue = RGBA(0.16, 0.47, 0.96)
-    public static let purple = RGBA(0.58, 0.32, 0.90)
+    public static let blue = RGBA(0.055, 0.647, 0.914)    // brand sky #0EA5E9
+    public static let purple = RGBA(0.486, 0.227, 0.929) // brand violet #7C3AED
     public static let black = RGBA(0.08, 0.08, 0.09)
     public static let white = RGBA(1, 1, 1)
 

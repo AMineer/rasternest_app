@@ -21,7 +21,7 @@ enum MainMenu {
         }
 
         main.addItem(submenu("RasterNest", [
-            item("About RasterNest", "orderFrontStandardAboutPanel:"),
+            item("About RasterNest", "showAbout:"),
             .separator(),
             item("Settings…", "showSettings:", ","),
             .separator(),

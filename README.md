@@ -1,3 +1,20 @@
+<p align="center">
+  <a href="https://rasternest.app">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.png">
+      <img alt="RasterNest: Capture. Refine. Share." src="docs/assets/banner-light.png" width="640">
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://rasternest.app"><img alt="Website" src="https://img.shields.io/badge/rasternest.app-7C3AED?style=flat-square"></a>
+  <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-0B1020?style=flat-square&logo=apple">
+  <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?style=flat-square&logo=swift&logoColor=white">
+  <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0EA5E9?style=flat-square"></a>
+  <a href="https://github.com/AMineer/rasternest_app/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/AMineer/rasternest_app/ci.yml?branch=main&style=flat-square&label=CI"></a>
+</p>
+
 # RasterNest
 
 **Open-source screen capture and markup.** Grab an area, window or screen with one shortcut, mark it up with arrows, callouts, step numbers and redaction, then copy, drag or export it. Native on macOS, with a scriptable `rnest` CLI for macOS and Linux.
@@ -87,6 +104,7 @@ open "rasternest://text"               # grab text
 - [Architecture](docs/ARCHITECTURE.md): how the package is layered and how to add a platform
 - [Distribution](docs/DISTRIBUTION.md): signing, notarization, DMG hosting, Homebrew tap
 - [Roadmap](docs/ROADMAP.md): feature parity checklist
+- [Brand](docs/BRAND.md): logo, colors and type
 - [Contributing](CONTRIBUTING.md)
 
 ## License

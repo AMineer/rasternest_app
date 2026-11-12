@@ -4,59 +4,69 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RasterNest</title>
-<meta name="description" content="RasterNest is a free, open-source screen capture and markup app for macOS, with an rnest command-line tool for macOS and Linux.">
-<meta property="og:title" content="RasterNest">
-<meta property="og:description" content="Capture an area, window or screen with one shortcut. Mark it up. Send it. Free and open source.">
-<meta property="og:image" content="https://rasternest.app/assets/icon-512.png">
+<meta name="description" content="RasterNest is a free, open-source screen capture and markup app for macOS, with the rnest command-line tool for macOS and Linux. Capture. Refine. Share.">
+<meta property="og:title" content="RasterNest: Capture. Refine. Share.">
+<meta property="og:description" content="Grab an area, window or screen with one shortcut, mark it up, and send it. Free and open source.">
+<meta property="og:image" content="https://rasternest.app/assets/og.png">
 <meta property="og:url" content="https://rasternest.app/">
-<meta name="theme-color" content="#0B1117" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#F3F6F7" media="(prefers-color-scheme: light)">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0B1020">
 <link rel="icon" type="image/png" href="assets/favicon-64.png">
-<link rel="apple-touch-icon" href="assets/icon-512.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: one centred column (max 1120px); hero splits copy | editor mock, collapsing to one column on phones.
-   Motif: viewfinder corner brackets, the app's capture frame. */
+/* Layout: a dark brand band (header + hero + editor preview) over a theme-aware page of centred 1120px sections.
+   Brand: violet primary, sky accent, ink surfaces; Inter on the web (SF Pro in the app). */
 :root {
-  --bg: #F3F6F7;
+  --bg: #F8FAFC;
   --surface: #FFFFFF;
-  --sunken: #E7EDEF;
-  --fg: #0E1A24;
-  --muted: #546874;
-  --line: #D3DDE1;
-  --teal: #0E9E99;
-  --indigo: #4540C9;
-  --coral: #F2554A;
-  --on-accent: #FFFFFF;
-  --code-bg: #0F1A22;
-  --code-fg: #DDE8EE;
+  --fg: #0B1020;
+  --muted: #475569;
+  --line: #E2E8F0;
+  --violet: #7C3AED;
+  --violet-soft: #EDE9FE;
+  --sky: #0284C7;
+  --check: #7C3AED;
 
-  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* brand band: identical in both themes */
+  --ink: #0B1020;
+  --ink-2: #111735;
+  --ink-violet: #2A1466;
+  --on-ink: #FFFFFF;
+  --on-ink-muted: #C7CBE0;
+  --ink-line: rgb(255 255 255 / 0.12);
+  --brand-violet: #7C3AED;
+  --brand-violet-hover: #6D28D9;
+  --brand-sky: #38BDF8;
+
+  --code-bg: #0B1020;
+  --code-fg: #E2E8F0;
+
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --step--1: 0.875rem;
   --step-0: 1rem;
-  --step-1: 1.25rem;
-  --step-2: 1.6rem;
-  --step-3: clamp(2rem, 4vw, 2.6rem);
-  --step-4: clamp(2.6rem, 6.4vw, 4.4rem);
-  --radius: 12px;
+  --step-1: 1.2rem;
+  --step-2: 1.5rem;
+  --step-3: clamp(1.9rem, 3.6vw, 2.5rem);
+  --step-4: clamp(3rem, 8vw, 5.6rem);
+  --radius: 14px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0B1117; --surface: #121B23; --sunken: #18232D; --fg: #E6EEF2; --muted: #8FA3AF;
-    --line: #23323D; --teal: #2CC9C2; --indigo: #8E89FF; --coral: #FF7466; --on-accent: #06161A;
-    --code-bg: #070C10; --code-fg: #DDE8EE; color-scheme: dark;
+    --bg: #0B1020; --surface: #121933; --fg: #E2E8F0; --muted: #94A3B8; --line: #1F2944;
+    --violet: #A78BFA; --violet-soft: #1E1747; --sky: #38BDF8; --check: #A78BFA;
+    --code-bg: #070B17; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0B1117; --surface: #121B23; --sunken: #18232D; --fg: #E6EEF2; --muted: #8FA3AF;
-  --line: #23323D; --teal: #2CC9C2; --indigo: #8E89FF; --coral: #FF7466; --on-accent: #06161A;
-  --code-bg: #070C10; --code-fg: #DDE8EE; color-scheme: dark;
+  --bg: #0B1020; --surface: #121933; --fg: #E2E8F0; --muted: #94A3B8; --line: #1F2944;
+  --violet: #A78BFA; --violet-soft: #1E1747; --sky: #38BDF8; --check: #A78BFA;
+  --code-bg: #070B17; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -66,12 +76,14 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 400 var(--step-0)/1.6 var(--font-body);
+  font: 400 var(--step-0)/1.6 var(--font);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
 }
 img, svg { max-width: 100%; }
 a { color: inherit; }
-:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; border-radius: 6px; }
+code { font-family: var(--font-mono); font-size: 0.9em; }
+:focus-visible { outline: 2px solid var(--brand-sky); outline-offset: 3px; border-radius: 6px; }
 
 .wrap {
   max-width: 1120px;
@@ -80,295 +92,303 @@ a { color: inherit; }
   padding-right: max(20px, env(safe-area-inset-right, 0px));
 }
 
-h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.02em; }
-h1 { font-size: var(--step-4); font-weight: 800; line-height: 1.02; }
-h2 { font-size: var(--step-3); font-weight: 700; line-height: 1.1; }
-h3 { font-size: var(--step-1); font-weight: 700; line-height: 1.25; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h2 { font-size: var(--step-3); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; }
+h3 { font-size: var(--step-1); font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; }
 p { margin: 0; }
-.lede { font-size: var(--step-1); color: var(--muted); max-width: 34ch; line-height: 1.5; }
-.eyebrow {
-  font: 600 0.75rem/1 var(--font-mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--teal);
-}
+.eyebrow { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--violet); }
 
-/* Header */
+/* ---------- Brand band ---------- */
+.band {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--ink-violet) 0%, var(--ink-2) 52%, var(--ink) 100%);
+  color: var(--on-ink);
+}
+.band .waves { position: absolute; inset: auto 0 0 0; width: 100%; height: 62%; pointer-events: none; }
+
 header.site {
   position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
-  background: color-mix(in srgb, var(--bg) 86%, transparent);
-  backdrop-filter: saturate(1.4) blur(12px);
-  -webkit-backdrop-filter: saturate(1.4) blur(12px);
-  border-bottom: 1px solid var(--line);
+  background: rgb(11 16 32 / 0.72);
+  backdrop-filter: saturate(1.5) blur(14px);
+  -webkit-backdrop-filter: saturate(1.5) blur(14px);
+  border-bottom: 1px solid var(--ink-line);
+  color: var(--on-ink);
 }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 21; background: var(--bg); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 21; background: var(--ink); }
 .nav { display: flex; align-items: center; gap: 24px; padding-block: 12px; }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 700 1.125rem/1 var(--font-display); }
-.brand img { width: 30px; height: 30px; }
-.nav-links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
-.nav-links a { text-decoration: none; color: var(--muted); font-size: var(--step--1); font-weight: 500; }
-.nav-links a:hover { color: var(--fg); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 1.15rem; letter-spacing: -0.02em; }
+.brand .mark { width: 34px; height: 27px; color: #fff; }
+.nav-links { display: flex; gap: 24px; margin-left: auto; align-items: center; }
+.nav-links a { text-decoration: none; color: var(--on-ink-muted); font-size: var(--step--1); font-weight: 500; }
+.nav-links a:hover { color: var(--on-ink); }
+.nav-links a.pill { color: #fff; }
 @media (max-width: 640px) { .nav-links a.optional { display: none; } }
 
-/* Buttons */
 .btn {
   display: inline-flex; align-items: center; gap: 10px;
-  padding: 13px 20px; border-radius: 10px;
-  font: 600 var(--step-0)/1 var(--font-body); text-decoration: none;
+  padding: 13px 22px; border-radius: 999px;
+  font: 600 var(--step-0)/1 var(--font); text-decoration: none;
   border: 1px solid transparent; cursor: pointer; transition: transform .15s ease, background .15s ease;
 }
 .btn:hover { transform: translateY(-1px); }
-.btn-primary { background: var(--fg); color: var(--bg); }
-.btn-ghost { background: transparent; color: var(--fg); border-color: var(--line); }
-.btn-ghost:hover { background: var(--surface); }
 .btn svg { width: 18px; height: 18px; flex: none; }
+.btn-violet { background: var(--brand-violet); color: #fff; box-shadow: 0 8px 24px rgb(124 58 237 / 0.35); }
+.btn-violet:hover { background: var(--brand-violet-hover); }
+.btn-outline { color: var(--on-ink); border-color: rgb(255 255 255 / 0.28); }
+.btn-outline:hover { background: rgb(255 255 255 / 0.08); }
+.pill { padding: 8px 16px; font-size: var(--step--1); box-shadow: none; }
 
-/* Hero */
-.hero { padding-block: clamp(48px, 8vw, 96px) clamp(40px, 6vw, 72px); }
-.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(32px, 5vw, 64px); align-items: center; }
-@media (max-width: 880px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
-.hero-copy { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-.hero h1 .mark { position: relative; white-space: nowrap; color: var(--coral); }
-.cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-.fineprint { font-size: var(--step--1); color: var(--muted); }
-.fineprint b { color: var(--fg); font-weight: 600; }
+.hero { position: relative; padding-block: clamp(56px, 9vw, 104px) 0; text-align: center; }
+.hero-inner { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.hero-mark { width: clamp(96px, 14vw, 132px); height: auto; color: #fff; filter: drop-shadow(0 12px 32px rgb(124 58 237 / 0.45)); }
+.hero h1 { font-size: var(--step-4); font-weight: 800; line-height: 0.98; letter-spacing: -0.045em; }
+.tagline { font-size: clamp(1.35rem, 2.6vw, 1.9rem); font-weight: 500; color: var(--on-ink-muted); letter-spacing: -0.01em; }
+.tagline span { background: linear-gradient(90deg, #C4B5FD, var(--brand-sky)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { max-width: 46ch; color: var(--on-ink-muted); font-size: var(--step-1); line-height: 1.55; }
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.fineprint { font-size: var(--step--1); color: var(--on-ink-muted); }
+.fineprint b { color: var(--on-ink); font-weight: 600; }
 
-.copyline {
-  display: flex; align-items: center; gap: 10px; max-width: 100%;
-  background: var(--code-bg); color: var(--code-fg);
-  border-radius: 10px; padding: 10px 10px 10px 14px;
-  font: 400 0.9rem/1.4 var(--font-mono);
+.shot-crop {
+  position: relative;
+  margin-top: clamp(40px, 6vw, 64px);
+  height: clamp(210px, 36vw, 400px);
+  overflow: hidden;
+  display: flex; justify-content: center;
 }
-.copyline code { overflow-x: auto; white-space: nowrap; min-width: 0; flex: 1; }
-.copyline code .p { color: #6FE3DC; user-select: none; }
-.copy {
-  flex: none; border: 1px solid #2B3B47; background: #16232D; color: var(--code-fg);
-  font: 600 0.75rem/1 var(--font-body); padding: 8px 10px; border-radius: 7px; cursor: pointer;
-}
-.copy:hover { background: #1E2F3B; }
+.shot-crop svg { width: min(920px, 100%); height: auto; align-self: flex-start; filter: drop-shadow(0 -6px 40px rgb(56 189 248 / 0.15)) drop-shadow(0 30px 60px rgb(0 0 0 / 0.5)); }
 
-/* Editor mock */
-.shot { position: relative; min-width: 0; }
-.shot svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 24px 48px rgb(9 20 28 / .22)); }
-.mock-chrome { fill: var(--surface); stroke: var(--line); }
-.mock-bar { fill: var(--sunken); }
-.mock-canvas { fill: var(--sunken); }
-.mock-tool { fill: var(--muted); opacity: .55; }
-.mock-tool-on { fill: var(--indigo); }
-.mock-text { fill: var(--muted); font: 600 11px var(--font-body); }
-
-/* Shortcut strip */
-.keys { border-block: 1px solid var(--line); background: var(--surface); }
+/* ---------- Shortcuts ---------- */
+.keys { background: var(--surface); border-bottom: 1px solid var(--line); }
 .keys-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.key-item { display: flex; align-items: center; gap: 14px; padding: 22px 20px; min-width: 0; }
+.key-item { display: flex; align-items: center; gap: 14px; padding: 24px 20px; min-width: 0; }
 .key-item + .key-item { border-left: 1px solid var(--line); }
 @media (max-width: 720px) {
   .keys-row { grid-template-columns: minmax(0, 1fr); }
   .key-item + .key-item { border-left: 0; border-top: 1px solid var(--line); }
 }
 kbd {
-  font: 600 0.95rem/1 var(--font-mono); color: var(--fg);
+  font: 600 0.92rem/1 var(--font-mono); color: var(--fg);
   background: var(--bg); border: 1px solid var(--line); border-bottom-width: 3px;
   padding: 8px 10px; border-radius: 8px; white-space: nowrap;
 }
+.key-item strong { display: block; font-weight: 600; }
 .key-item span { color: var(--muted); font-size: var(--step--1); }
-.key-item strong { display: block; color: var(--fg); font-size: var(--step-0); font-weight: 600; }
 
-/* Sections */
-section.block { padding-block: clamp(56px, 8vw, 96px); }
+/* ---------- Sections ---------- */
+section.block { padding-block: clamp(64px, 9vw, 104px); }
+section.alt { background: var(--surface); border-block: 1px solid var(--line); }
 .section-head { display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; max-width: 640px; }
 .section-head p { color: var(--muted); font-size: var(--step-1); line-height: 1.5; }
 
-.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 @media (max-width: 760px) { .features { grid-template-columns: minmax(0, 1fr); } }
 .panel {
   position: relative; background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 28px; display: flex; flex-direction: column; gap: 18px; min-width: 0;
 }
-/* viewfinder corners on the two feature panels */
+section.alt .panel { background: var(--bg); }
+/* viewfinder corners: the logo's capture brackets */
 .panel.frame::before, .panel.frame::after {
-  content: ""; position: absolute; width: 18px; height: 18px; border: 3px solid var(--coral);
+  content: ""; position: absolute; top: -2px; width: 22px; height: 22px; border-top: 4px solid var(--violet);
 }
-.panel.frame::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 10px; }
-.panel.frame::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 10px; }
+.panel.frame::before { left: -2px; border-left: 4px solid var(--violet); border-top-left-radius: 12px; }
+.panel.frame::after { right: -2px; border-right: 4px solid var(--violet); border-top-right-radius: 12px; }
 .panel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .panel li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; }
-.panel li svg { width: 18px; height: 18px; margin-top: 3px; color: var(--teal); }
+.panel li svg { width: 18px; height: 18px; margin-top: 3px; color: var(--check); }
 .panel li b { font-weight: 600; }
 .panel li span { color: var(--muted); }
 
 .tools { display: flex; flex-wrap: wrap; gap: 8px; }
 .tool-chip {
   display: inline-flex; align-items: center; gap: 8px;
-  font: 500 var(--step--1)/1 var(--font-body); padding: 8px 10px;
-  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  font: 500 var(--step--1)/1 var(--font); padding: 8px 10px;
+  background: var(--violet-soft); border-radius: 8px;
 }
-.tool-chip kbd { padding: 3px 6px; font-size: 0.72rem; border-bottom-width: 2px; }
+.tool-chip kbd { padding: 3px 6px; font-size: 0.72rem; border-bottom-width: 2px; background: var(--surface); }
 
-/* Install */
 .install { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 @media (max-width: 960px) { .install { grid-template-columns: minmax(0, 1fr); } }
-.install .panel h3 { display: flex; align-items: center; gap: 10px; }
 .install .panel p { color: var(--muted); }
-.os-tag { font: 600 0.7rem/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--indigo); }
+.os-tag { font: 600 0.72rem/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--sky); }
 .dl-list { display: grid; gap: 8px; }
 .dl-list a {
   display: flex; justify-content: space-between; gap: 10px; align-items: center;
-  text-decoration: none; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
-  font: 500 var(--step--1)/1.3 var(--font-mono); background: var(--bg);
+  text-decoration: none; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px;
+  font: 500 var(--step--1)/1.3 var(--font-mono); background: var(--surface);
 }
-.dl-list a:hover { border-color: var(--teal); }
-.dl-list a small { color: var(--muted); font-family: var(--font-body); }
+.dl-list a:hover { border-color: var(--violet); }
+.dl-list a small { color: var(--muted); font-family: var(--font); }
 
-/* CLI */
-.cli-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
+.copyline {
+  display: flex; align-items: center; gap: 10px; max-width: 100%;
+  background: var(--code-bg); color: var(--code-fg);
+  border-radius: 10px; padding: 10px 10px 10px 14px;
+  font: 400 0.88rem/1.4 var(--font-mono);
+}
+.copyline code { overflow-x: auto; white-space: nowrap; min-width: 0; flex: 1; font-size: inherit; }
+.copyline .p { color: var(--brand-sky); user-select: none; }
+.copy {
+  flex: none; border: 1px solid #27304D; background: #141B36; color: var(--code-fg);
+  font: 600 0.75rem/1 var(--font); padding: 8px 10px; border-radius: 7px; cursor: pointer;
+}
+.copy:hover { background: #1B2447; }
+
+.cli-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 36px; align-items: start; }
 @media (max-width: 880px) { .cli-grid { grid-template-columns: minmax(0, 1fr); } }
-.terminal {
-  background: var(--code-bg); color: var(--code-fg); border-radius: var(--radius);
-  overflow: hidden; border: 1px solid #1C2A34; min-width: 0;
-}
-.terminal-bar { display: flex; gap: 7px; padding: 12px 14px; border-bottom: 1px solid #1C2A34; }
-.terminal-bar i { width: 11px; height: 11px; border-radius: 50%; background: #2A3A46; }
-.terminal pre { margin: 0; padding: 18px 20px; overflow-x: auto; font: 400 0.88rem/1.75 var(--font-mono); }
-.terminal .c { color: #6E8696; }
-.terminal .p { color: #6FE3DC; user-select: none; }
-.terminal .o { color: #FFB4A9; }
-
-.notes { display: grid; gap: 16px; }
+.terminal { background: var(--code-bg); color: var(--code-fg); border-radius: var(--radius); overflow: hidden; border: 1px solid #1B2342; min-width: 0; }
+.terminal-bar { display: flex; gap: 7px; padding: 12px 14px; border-bottom: 1px solid #1B2342; }
+.terminal-bar i { width: 11px; height: 11px; border-radius: 50%; background: #27304D; }
+.terminal pre { margin: 0; padding: 18px 20px; overflow-x: auto; font: 400 0.86rem/1.75 var(--font-mono); }
+.terminal .c { color: #64748B; }
+.terminal .p { color: var(--brand-sky); user-select: none; }
+.terminal .o { color: #C4B5FD; }
+.notes { display: grid; gap: 16px; margin-top: 12px; }
 .note { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; }
-.note svg { width: 22px; height: 22px; color: var(--coral); margin-top: 2px; }
+.note svg { width: 22px; height: 22px; color: var(--violet); margin-top: 2px; }
 .note p { color: var(--muted); }
 .note b { color: var(--fg); }
 
-/* Footer */
-footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--muted); font-size: var(--step--1); }
+footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px; font-size: var(--step--1); }
 .foot { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+.foot .brand { color: var(--on-ink); }
 .foot .spacer { flex: 1; }
-.foot a { color: var(--muted); text-decoration: none; }
-.foot a:hover { color: var(--fg); }
+.foot a { color: var(--on-ink-muted); text-decoration: none; }
+.foot a:hover { color: var(--on-ink); }
+.foot .tag { color: var(--on-ink-muted); }
 </style>
 </head>
 <body>
 
-<header class="site">
-  <div class="wrap nav">
-    <a class="brand" href="#top" aria-label="RasterNest home">
-      <img src="assets/icon-512.png" alt="" width="30" height="30">
-      RasterNest
-    </a>
-    <nav class="nav-links" aria-label="Primary">
-      <a class="optional" href="#features">Features</a>
-      <a class="optional" href="#cli">CLI</a>
-      <a href="#install">Download</a>
-      <a class="gh-link" href="https://github.com/AMineer/rasternest_app" rel="noopener">GitHub</a>
-    </nav>
-  </div>
-</header>
+<div class="band">
+  <svg class="waves" viewBox="0 0 1440 400" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 400 L0 210 C 420 330, 760 120, 1440 40 L1440 400 Z" fill="#7C3AED" fill-opacity="0.22"/>
+    <path d="M0 400 L0 280 C 480 380, 900 170, 1440 120 L1440 400 Z" fill="#7C3AED" fill-opacity="0.25"/>
+  </svg>
 
-<main id="top">
-  <section class="hero">
-    <div class="wrap hero-grid">
-      <div class="hero-copy">
-        <span class="eyebrow">Free · open source · macOS + Linux CLI</span>
-        <h1>Capture it. <span class="mark">Mark it up.</span> Send it.</h1>
-        <p class="lede">One shortcut grabs an area, a window or the whole screen. Arrows, callouts, step numbers and redaction are a keystroke away. Then copy, drag or export.</p>
-        <div class="cta-row">
-          <a class="btn btn-primary dl-dmg" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.dmg">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-2.99-.79-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.89 1.15 9.14.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.78.74 2.99.72 1.24-.02 2.02-1.12 2.77-2.23.88-1.28 1.24-2.52 1.26-2.59-.03-.01-2.41-.92-2.43-3.65zM14.1 5.86c.63-.77 1.06-1.83.94-2.89-.91.04-2.02.61-2.67 1.37-.58.67-1.1 1.76-.96 2.8 1.02.08 2.06-.52 2.69-1.28z"/></svg>
-            Download for Mac
-          </a>
-          <a class="btn btn-ghost" href="#install">Other ways to install</a>
-        </div>
-        <p class="fineprint"><b class="version">Latest release</b> · macOS 14 Sonoma or later · Apple silicon and Intel · MIT licence</p>
-      </div>
+  <header class="site">
+    <div class="wrap nav">
+      <a class="brand" href="#top" aria-label="RasterNest home">
+        <svg class="mark" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="40 70 920 720"><defs><linearGradient id="rn0-b0" x1="135.0" x2="865.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#0EA5E9"/></linearGradient><linearGradient id="rn0-b1" x1="95.0" x2="905.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#38BDF8"/></linearGradient><linearGradient id="rn0-b2" x1="60.0" x2="940.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="var(--rn-front-from, #FFFFFF)"/><stop offset="1" stop-color="var(--rn-front-to, #C4B5FD)"/></linearGradient></defs><path fill="url(#rn0-b0)" d="M135.0 540.0 Q500 830.0 865.0 540.0 Q500 1010.0 135.0 540.0Z"/><path fill="url(#rn0-b1)" d="M95.0 485.0 Q500 795.0 905.0 485.0 Q500 975.0 95.0 485.0Z"/><path fill="url(#rn0-b2)" d="M60.0 430.0 Q500 760.0 940.0 430.0 Q500 940.0 60.0 430.0Z"/><rect x="316.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#8B5CF6"/><rect x="446.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#6982F6"/><rect x="576.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#48A9F7"/><rect x="316.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#8265F6"/><rect x="446.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#618CF7"/><rect x="576.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#40B3F7"/><rect x="316.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#7A6FF6"/><rect x="446.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#5996F7"/><rect x="576.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#38BDF8"/><path d="M200.0 330.0L200.0 175.0Q200.0 120.0 255.0 120.0L335.0 120.0" fill="none" stroke="currentColor" stroke-width="56.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M800.0 330.0L800.0 175.0Q800.0 120.0 745.0 120.0L665.0 120.0" fill="none" stroke="currentColor" stroke-width="56.0" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        RasterNest
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a class="optional" href="#features">Features</a>
+        <a class="optional" href="#cli">CLI</a>
+        <a class="optional" href="https://github.com/AMineer/rasternest_app" rel="noopener">GitHub</a>
+        <a class="btn btn-violet pill" href="#install">Download</a>
+      </nav>
+    </div>
+  </header>
 
-      <div class="shot" aria-label="The RasterNest editor with an arrow, numbered steps, a callout and a pixelated area on a screenshot">
-        <svg viewBox="0 0 640 430" role="img" aria-hidden="true">
-          <defs>
-            <pattern id="px" width="14" height="14" patternUnits="userSpaceOnUse">
-              <rect width="14" height="14" fill="#7C8C97"/><rect width="7" height="7" fill="#9AA9B3"/><rect x="7" y="7" width="7" height="7" fill="#5F707C"/>
-            </pattern>
-            <marker id="head" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-              <path d="M0 0 L10 5 L0 10 z" fill="#F2554A"/>
-            </marker>
-          </defs>
-          <!-- window -->
-          <rect class="mock-chrome" x="1" y="1" width="638" height="428" rx="14"/>
-          <circle cx="22" cy="20" r="5.5" fill="#FF5F57"/><circle cx="40" cy="20" r="5.5" fill="#FEBC2E"/><circle cx="58" cy="20" r="5.5" fill="#28C840"/>
-          <text class="mock-text" x="320" y="24" text-anchor="middle">RasterNest 2026-11-11 at 09.41.27</text>
-          <!-- toolbar -->
-          <rect class="mock-bar" x="1" y="38" width="638" height="40"/>
-          <g>
-            <rect class="mock-tool" x="16" y="48" width="20" height="20" rx="5"/>
-            <rect class="mock-tool-on" x="42" y="48" width="20" height="20" rx="5"/>
-            <path d="M47 63 L57 53 M52 53 H57 V58" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
-            <rect class="mock-tool" x="68" y="48" width="20" height="20" rx="5"/>
-            <rect class="mock-tool" x="94" y="48" width="20" height="20" rx="5"/>
-            <rect class="mock-tool" x="120" y="48" width="20" height="20" rx="5"/>
-            <rect class="mock-tool" x="146" y="48" width="20" height="20" rx="5"/>
-            <rect class="mock-tool" x="172" y="48" width="20" height="20" rx="5"/>
-            <rect class="mock-tool" x="198" y="48" width="20" height="20" rx="5"/>
-            <rect class="mock-tool" x="224" y="48" width="20" height="20" rx="5"/>
-            <rect x="520" y="49" width="50" height="18" rx="5" fill="none" stroke="var(--line)"/>
-            <text class="mock-text" x="545" y="62" text-anchor="middle">Copy</text>
-            <rect x="576" y="49" width="50" height="18" rx="5" fill="none" stroke="var(--line)"/>
-            <text class="mock-text" x="601" y="62" text-anchor="middle">Export</text>
-          </g>
-          <!-- canvas -->
-          <rect class="mock-canvas" x="1" y="78" width="638" height="350"/>
-          <!-- captured "screenshot": a settings page -->
-          <g>
-            <rect x="40" y="98" width="560" height="306" rx="8" fill="#FBFCFD" stroke="#D9E1E5"/>
-            <rect x="40" y="98" width="140" height="306" rx="8" fill="#EEF2F4"/>
-            <rect x="56" y="122" width="90" height="9" rx="4" fill="#C4CFD5"/>
-            <rect x="56" y="144" width="70" height="9" rx="4" fill="#C4CFD5"/>
-            <rect x="52" y="160" width="116" height="24" rx="6" fill="#D6E6F7"/>
-            <rect x="60" y="168" width="78" height="9" rx="4" fill="#5C8DD0"/>
-            <rect x="56" y="196" width="84" height="9" rx="4" fill="#C4CFD5"/>
-            <rect x="56" y="218" width="60" height="9" rx="4" fill="#C4CFD5"/>
-            <rect x="204" y="120" width="190" height="16" rx="5" fill="#26333D"/>
-            <rect x="204" y="152" width="370" height="54" rx="8" fill="#FFFFFF" stroke="#E1E8EC"/>
-            <rect x="220" y="168" width="150" height="9" rx="4" fill="#9AA9B3"/>
-            <rect x="220" y="184" width="210" height="8" rx="4" fill="#C9D3D9"/>
-            <rect x="520" y="168" width="38" height="20" rx="10" fill="#34C759"/>
-            <circle cx="548" cy="178" r="8" fill="#fff"/>
-            <rect x="204" y="218" width="370" height="54" rx="8" fill="#FFFFFF" stroke="#E1E8EC"/>
-            <rect x="220" y="234" width="120" height="9" rx="4" fill="#9AA9B3"/>
-            <rect x="220" y="250" width="180" height="8" rx="4" fill="#C9D3D9"/>
-            <rect x="204" y="284" width="370" height="96" rx="8" fill="#FFFFFF" stroke="#E1E8EC"/>
-            <rect x="220" y="300" width="96" height="9" rx="4" fill="#9AA9B3"/>
-          </g>
-          <!-- annotations -->
-          <rect x="198" y="146" width="382" height="66" rx="3" fill="none" stroke="#F2554A" stroke-width="3.5"/>
-          <rect x="220" y="320" width="230" height="40" fill="url(#px)" rx="2"/>
-          <path d="M150 330 C 170 270, 230 230, 300 214" fill="none" stroke="#F2554A" stroke-width="5" stroke-linecap="round" marker-end="url(#head)"/>
-          <g>
-            <circle cx="196" cy="146" r="13" fill="#F2554A" stroke="#fff" stroke-width="2.5"/>
-            <text x="196" y="151" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="14" fill="#fff">1</text>
-            <circle cx="218" cy="320" r="13" fill="#F2554A" stroke="#fff" stroke-width="2.5"/>
-            <text x="218" y="325" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-weight="700" font-size="14" fill="#fff">2</text>
-          </g>
-          <g>
-            <rect x="60" y="334" width="150" height="34" rx="8" fill="#0E9E99"/>
-            <text x="135" y="356" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-weight="600" font-size="13" fill="#fff">Turn this on first</text>
-          </g>
-        </svg>
+  <section class="hero" id="top">
+    <div class="wrap hero-inner">
+      <svg class="hero-mark" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="40 70 920 720"><defs><linearGradient id="rn1-b0" x1="135.0" x2="865.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#0EA5E9"/></linearGradient><linearGradient id="rn1-b1" x1="95.0" x2="905.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#38BDF8"/></linearGradient><linearGradient id="rn1-b2" x1="60.0" x2="940.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="var(--rn-front-from, #FFFFFF)"/><stop offset="1" stop-color="var(--rn-front-to, #C4B5FD)"/></linearGradient></defs><path fill="url(#rn1-b0)" d="M135.0 540.0 Q500 830.0 865.0 540.0 Q500 1010.0 135.0 540.0Z"/><path fill="url(#rn1-b1)" d="M95.0 485.0 Q500 795.0 905.0 485.0 Q500 975.0 95.0 485.0Z"/><path fill="url(#rn1-b2)" d="M60.0 430.0 Q500 760.0 940.0 430.0 Q500 940.0 60.0 430.0Z"/><rect x="316.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#8B5CF6"/><rect x="446.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#6982F6"/><rect x="576.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#48A9F7"/><rect x="316.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#8265F6"/><rect x="446.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#618CF7"/><rect x="576.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#40B3F7"/><rect x="316.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#7A6FF6"/><rect x="446.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#5996F7"/><rect x="576.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#38BDF8"/><path d="M200.0 330.0L200.0 175.0Q200.0 120.0 255.0 120.0L335.0 120.0" fill="none" stroke="currentColor" stroke-width="56.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M800.0 330.0L800.0 175.0Q800.0 120.0 745.0 120.0L665.0 120.0" fill="none" stroke="currentColor" stroke-width="56.0" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <h1>RasterNest</h1>
+      <p class="tagline"><span>Capture. Refine. Share.</span></p>
+      <p class="lede">Grab an area, a window or the whole screen with one shortcut. Add arrows, callouts, step numbers and redaction. Copy it, drag it or export it.</p>
+      <div class="cta-row">
+        <a class="btn btn-violet dl-dmg" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.dmg">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-2.99-.79-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.89 1.15 9.14.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.78.74 2.99.72 1.24-.02 2.02-1.12 2.77-2.23.88-1.28 1.24-2.52 1.26-2.59-.03-.01-2.41-.92-2.43-3.65zM14.1 5.86c.63-.77 1.06-1.83.94-2.89-.91.04-2.02.61-2.67 1.37-.58.67-1.1 1.76-.96 2.8 1.02.08 2.06-.52 2.69-1.28z"/></svg>
+          Download for Mac
+        </a>
+        <a class="btn btn-outline" href="#install">Homebrew &amp; Linux</a>
       </div>
+      <p class="fineprint"><b class="version">Latest release</b> · macOS 14 Sonoma or later · Apple silicon and Intel · MIT licence</p>
+    </div>
+
+    <div class="wrap shot-crop" aria-label="The RasterNest editor with a highlighted setting, an arrow, numbered steps, a callout and a pixelated area">
+      <svg viewBox="0 0 920 560" aria-hidden="true">
+        <defs>
+          <pattern id="px" width="16" height="16" patternUnits="userSpaceOnUse">
+            <rect width="16" height="16" fill="#64748B"/><rect width="8" height="8" fill="#94A3B8"/><rect x="8" y="8" width="8" height="8" fill="#475569"/>
+          </pattern>
+          <linearGradient id="arrowGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#7C3AED"/></linearGradient>
+          <marker id="head" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.6" markerHeight="3.6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7C3AED"/></marker>
+        </defs>
+        <!-- window -->
+        <rect x="1" y="1" width="918" height="580" rx="16" fill="#0E1430" stroke="#2A3358"/>
+        <circle cx="26" cy="24" r="6" fill="#FF5F57"/><circle cx="46" cy="24" r="6" fill="#FEBC2E"/><circle cx="66" cy="24" r="6" fill="#28C840"/>
+        <text x="460" y="29" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#C7CBE0">RasterNest 2026-11-12 at 09.41.27</text>
+        <!-- toolbar -->
+        <rect x="1" y="46" width="918" height="48" fill="#121937"/>
+        <g fill="#3A4470">
+          <rect x="18" y="58" width="26" height="24" rx="6"/>
+          <rect x="50" y="58" width="26" height="24" rx="6" fill="#7C3AED"/>
+          <rect x="82" y="58" width="26" height="24" rx="6"/><rect x="114" y="58" width="26" height="24" rx="6"/>
+          <rect x="146" y="58" width="26" height="24" rx="6"/><rect x="178" y="58" width="26" height="24" rx="6"/>
+          <rect x="210" y="58" width="26" height="24" rx="6"/><rect x="242" y="58" width="26" height="24" rx="6"/>
+          <rect x="274" y="58" width="26" height="24" rx="6"/><rect x="306" y="58" width="26" height="24" rx="6"/>
+        </g>
+        <path d="M57 76 L69 64 M63 64 H69 V70" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="700" y="75" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#C7CBE0">100%</text>
+        <rect x="752" y="59" width="70" height="22" rx="11" fill="none" stroke="#3A4470"/>
+        <text x="787" y="74" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#E2E8F0">Copy</text>
+        <rect x="830" y="59" width="76" height="22" rx="11" fill="#7C3AED"/>
+        <text x="868" y="74" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#fff">Export…</text>
+        <!-- inspector -->
+        <rect x="1" y="94" width="918" height="38" fill="#0E1430"/>
+        <line x1="1" y1="132" x2="919" y2="132" stroke="#222B4D"/>
+        <g>
+          <circle cx="28" cy="113" r="8" fill="#7C3AED" stroke="#fff" stroke-width="2"/>
+          <circle cx="50" cy="113" r="8" fill="#0EA5E9"/><circle cx="72" cy="113" r="8" fill="#38BDF8"/>
+          <circle cx="94" cy="113" r="8" fill="#F43F5E"/><circle cx="116" cy="113" r="8" fill="#FACC15"/><circle cx="138" cy="113" r="8" fill="#F8FAFC"/>
+          <text x="166" y="117" font-family="Inter, sans-serif" font-size="12" fill="#94A3B8">Width</text>
+          <rect x="210" y="111" width="110" height="4" rx="2" fill="#2A3358"/><rect x="210" y="111" width="46" height="4" rx="2" fill="#7C3AED"/><circle cx="256" cy="113" r="7" fill="#E2E8F0"/>
+        </g>
+        <!-- canvas -->
+        <rect x="1" y="133" width="918" height="447" fill="#0A0F24"/>
+        <g>
+          <rect x="70" y="160" width="780" height="400" rx="10" fill="#F8FAFC"/>
+          <rect x="70" y="160" width="190" height="400" rx="10" fill="#EEF2F7"/>
+          <rect x="250" y="160" width="10" height="400" fill="#EEF2F7"/>
+          <rect x="92" y="190" width="110" height="10" rx="5" fill="#CBD5E1"/>
+          <rect x="92" y="214" width="84" height="10" rx="5" fill="#CBD5E1"/>
+          <rect x="86" y="232" width="156" height="28" rx="7" fill="#EDE9FE"/>
+          <rect x="96" y="241" width="96" height="10" rx="5" fill="#7C3AED"/>
+          <rect x="92" y="276" width="100" height="10" rx="5" fill="#CBD5E1"/>
+          <rect x="92" y="300" width="70" height="10" rx="5" fill="#CBD5E1"/>
+          <rect x="288" y="186" width="230" height="18" rx="6" fill="#0B1020"/>
+          <rect x="288" y="222" width="530" height="64" rx="10" fill="#fff" stroke="#E2E8F0"/>
+          <rect x="308" y="240" width="190" height="10" rx="5" fill="#64748B"/>
+          <rect x="308" y="258" width="270" height="9" rx="4.5" fill="#CBD5E1"/>
+          <rect x="752" y="242" width="46" height="24" rx="12" fill="#22C55E"/><circle cx="786" cy="254" r="9.5" fill="#fff"/>
+          <rect x="288" y="300" width="530" height="64" rx="10" fill="#fff" stroke="#E2E8F0"/>
+          <rect x="308" y="318" width="150" height="10" rx="5" fill="#64748B"/>
+          <rect x="308" y="336" width="230" height="9" rx="4.5" fill="#CBD5E1"/>
+          <rect x="288" y="378" width="530" height="120" rx="10" fill="#fff" stroke="#E2E8F0"/>
+          <rect x="308" y="396" width="120" height="10" rx="5" fill="#64748B"/>
+        </g>
+        <!-- annotations -->
+        <rect x="280" y="214" width="546" height="80" rx="4" fill="none" stroke="#7C3AED" stroke-width="4"/>
+        <rect x="308" y="420" width="300" height="56" rx="3" fill="url(#px)"/>
+        <path d="M180 420 C 210 350, 280 320, 380 300" fill="none" stroke="url(#arrowGrad)" stroke-width="6" stroke-linecap="round" marker-end="url(#head)"/>
+        <g font-family="Inter, sans-serif" font-weight="700" font-size="16" fill="#fff" text-anchor="middle">
+          <circle cx="280" cy="214" r="15" fill="#7C3AED" stroke="#fff" stroke-width="3"/><text x="280" y="220">1</text>
+          <circle cx="308" cy="420" r="15" fill="#7C3AED" stroke="#fff" stroke-width="3"/><text x="308" y="426">2</text>
+        </g>
+        <rect x="88" y="430" width="180" height="40" rx="10" fill="#0EA5E9"/>
+        <text x="178" y="456" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="15" fill="#fff">Turn this on first</text>
+      </svg>
     </div>
   </section>
+</div>
 
-  <div class="keys">
-    <div class="wrap keys-row">
-      <div class="key-item"><kbd>⌃⇧C</kbd><div><strong>Capture area or window</strong><span>Hover to pick a window, drag for an area</span></div></div>
-      <div class="key-item"><kbd>⌃⇧F</kbd><div><strong>Capture full screen</strong><span>The display under your pointer</span></div></div>
-      <div class="key-item"><kbd>⌃⇧T</kbd><div><strong>Grab text</strong><span>Select anything; the words land on your clipboard</span></div></div>
-    </div>
+<div class="keys">
+  <div class="wrap keys-row">
+    <div class="key-item"><kbd>⌃⇧C</kbd><div><strong>Capture area or window</strong><span>Hover to pick a window, drag for an area</span></div></div>
+    <div class="key-item"><kbd>⌃⇧F</kbd><div><strong>Capture full screen</strong><span>The display under your pointer</span></div></div>
+    <div class="key-item"><kbd>⌃⇧T</kbd><div><strong>Grab text</strong><span>Select anything; the words land on your clipboard</span></div></div>
   </div>
+</div>
 
+<main>
   <section class="block" id="features">
     <div class="wrap">
       <div class="section-head">
-        <span class="eyebrow">What it does</span>
+        <span class="eyebrow">Capture · Refine · Share</span>
         <h2>Fast to capture. Fast to explain.</h2>
         <p>RasterNest freezes your screen the moment you press the shortcut, so menus and hover states stay put while you frame the shot.</p>
       </div>
@@ -384,7 +404,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--mu
           </ul>
         </div>
         <div class="panel frame">
-          <h3>Mark up</h3>
+          <h3>Refine</h3>
           <div class="tools" aria-label="Editor tools and their shortcuts">
             <span class="tool-chip">Arrow <kbd>A</kbd></span>
             <span class="tool-chip">Line <kbd>L</kbd></span>
@@ -400,7 +420,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--mu
           </div>
           <ul>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Styles that stick.</b> <span>Each tool remembers its color, width and shadow between captures.</span></div></li>
-            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Out the door fast.</b> <span>⌘C to copy, drag the image into Slack or a doc, or ⌘E to export PNG or JPEG.</span></div></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Share in one move.</b> <span>⌘C to copy, drag the image into Slack or a doc, or ⌘E to export PNG or JPEG.</span></div></li>
             <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><div><b>Edit later.</b> <span>Save a <code>.rasternest</code> file to keep every annotation editable.</span></div></li>
           </ul>
         </div>
@@ -408,12 +428,12 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--mu
     </div>
   </section>
 
-  <section class="block" id="install" style="background: var(--surface); border-block: 1px solid var(--line);">
+  <section class="block alt" id="install">
     <div class="wrap">
       <div class="section-head">
         <span class="eyebrow">Download</span>
         <h2>Install RasterNest</h2>
-        <p>Pick whichever suits you. Every option installs the same signed build from the latest GitHub release.</p>
+        <p>Pick whichever suits you. Every option installs the same build from the latest GitHub release.</p>
       </div>
       <div class="install">
         <div class="panel">
@@ -448,9 +468,9 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--mu
     <div class="wrap cli-grid">
       <div class="section-head" style="margin-bottom: 0;">
         <span class="eyebrow">Command line</span>
-        <h2>Script your screenshots with <code style="font-family: var(--font-mono); font-size: 0.85em;">rnest</code></h2>
+        <h2>Script your screenshots with <code>rnest</code></h2>
         <p>The same capture engine, ready for shell scripts, Raycast, Alfred and CI. Write files, pipe PNGs to stdout, or copy straight to the clipboard.</p>
-        <div class="notes" style="margin-top: 12px;">
+        <div class="notes">
           <div class="note">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
             <p><b>Screen Recording permission.</b> macOS asks the first time you capture. Allow it in System Settings › Privacy &amp; Security › Screen &amp; System Audio Recording. For <code>rnest</code>, the permission belongs to your terminal app.</p>
@@ -465,7 +485,7 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--mu
         <div class="terminal-bar"><i></i><i></i><i></i></div>
 <pre><span class="c"># drag out an area, save it to ~/Pictures/RasterNest</span>
 <span class="p">$ </span>rnest capture --region
-<span class="o">~/Pictures/RasterNest/RasterNest 2026-11-11 at 09.41.27.png</span>
+<span class="o">~/Pictures/RasterNest/RasterNest 2026-11-12 at 09.41.27.png</span>
 
 <span class="c"># click a window and copy it to the clipboard</span>
 <span class="p">$ </span>rnest capture --window -c
@@ -489,11 +509,12 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--mu
 
 <footer>
   <div class="wrap foot">
-    <a class="brand" href="#top"><img src="assets/icon-512.png" alt="" width="22" height="22"> RasterNest</a>
+    <a class="brand" href="#top"><svg class="mark" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="40 70 920 720"><defs><linearGradient id="rn2-b0" x1="135.0" x2="865.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#0EA5E9"/></linearGradient><linearGradient id="rn2-b1" x1="95.0" x2="905.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#A78BFA"/><stop offset="1" stop-color="#38BDF8"/></linearGradient><linearGradient id="rn2-b2" x1="60.0" x2="940.0" y1="0" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="var(--rn-front-from, #FFFFFF)"/><stop offset="1" stop-color="var(--rn-front-to, #C4B5FD)"/></linearGradient></defs><path fill="url(#rn2-b0)" d="M135.0 540.0 Q500 830.0 865.0 540.0 Q500 1010.0 135.0 540.0Z"/><path fill="url(#rn2-b1)" d="M95.0 485.0 Q500 795.0 905.0 485.0 Q500 975.0 95.0 485.0Z"/><path fill="url(#rn2-b2)" d="M60.0 430.0 Q500 760.0 940.0 430.0 Q500 940.0 60.0 430.0Z"/><rect x="316.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#8B5CF6"/><rect x="446.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#6982F6"/><rect x="576.0" y="185.0" width="108.0" height="108.0" rx="18" fill="#48A9F7"/><rect x="316.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#8265F6"/><rect x="446.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#618CF7"/><rect x="576.0" y="315.0" width="108.0" height="108.0" rx="18" fill="#40B3F7"/><rect x="316.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#7A6FF6"/><rect x="446.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#5996F7"/><rect x="576.0" y="445.0" width="108.0" height="108.0" rx="18" fill="#38BDF8"/><path d="M200.0 330.0L200.0 175.0Q200.0 120.0 255.0 120.0L335.0 120.0" fill="none" stroke="currentColor" stroke-width="56.0" stroke-linecap="round" stroke-linejoin="round"/><path d="M800.0 330.0L800.0 175.0Q800.0 120.0 745.0 120.0L665.0 120.0" fill="none" stroke="currentColor" stroke-width="56.0" stroke-linecap="round" stroke-linejoin="round"/></svg> RasterNest</a>
+    <span class="tag">Capture. Refine. Share.</span>
     <span class="spacer"></span>
-    <a class="gh-link" href="https://github.com/AMineer/rasternest_app" rel="noopener">Source on GitHub</a>
-    <a class="gh-releases" href="https://github.com/AMineer/rasternest_app/releases" rel="noopener">Release notes</a>
-    <a class="gh-issues" href="https://github.com/AMineer/rasternest_app/issues" rel="noopener">Report an issue</a>
+    <a href="https://github.com/AMineer/rasternest_app" rel="noopener">Source on GitHub</a>
+    <a href="https://github.com/AMineer/rasternest_app/releases" rel="noopener">Release notes</a>
+    <a href="https://github.com/AMineer/rasternest_app/issues" rel="noopener">Report an issue</a>
     <span>MIT licence</span>
   </div>
 </footer>
@@ -502,7 +523,6 @@ footer { border-top: 1px solid var(--line); padding-block: 32px; color: var(--mu
 (() => {
   const REPO = "AMineer/rasternest_app";
 
-  // Copy buttons
   document.querySelectorAll("button.copy").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const el = document.querySelector(btn.dataset.copy);

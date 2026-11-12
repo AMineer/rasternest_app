@@ -232,7 +232,7 @@ final class OverlayView: NSView {
                 ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.95))
                 ctx.setLineWidth(1)
             } else {
-                ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+                ctx.setStrokeColor(Brand.highlight.cgColor)
                 ctx.setLineWidth(3)
             }
             ctx.stroke(focus.insetBy(dx: -0.5, dy: -0.5))

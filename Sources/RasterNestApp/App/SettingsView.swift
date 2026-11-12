@@ -90,6 +90,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .tint(Brand.violetColor)
         .frame(width: 520)
         .fixedSize(horizontal: false, vertical: true)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
