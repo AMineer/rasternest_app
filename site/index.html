@@ -447,14 +447,14 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
         <div class="panel">
           <span class="os-tag">macOS · Homebrew</span>
           <h3>Install with Homebrew</h3>
-          <p>Installs the app and adds <code>rnest</code> to your PATH.</p>
-          <div class="copyline"><code><span class="p">$ </span><span class="cmd-cask">brew install --cask amineer/tap/rasternest</span></code><button class="copy" type="button" data-copy=".cmd-cask">Copy</button></div>
+          <p>Installs the app and adds <code>rnest</code> to your PATH. <code>brew trust</code> is a one-time step Homebrew 7 requires for third-party taps.</p>
+          <div class="copyline"><code><span class="p">$ </span><span class="cmd-cask">brew trust amineer/tap &amp;&amp; brew install --cask amineer/tap/rasternest</span></code><button class="copy" type="button" data-copy=".cmd-cask">Copy</button></div>
         </div>
         <div class="panel">
           <span class="os-tag">Linux · CLI</span>
           <h3>rnest for Linux</h3>
           <p>Uses grim, gnome-screenshot, spectacle, maim or scrot, whichever you have installed.</p>
-          <div class="copyline"><code><span class="p">$ </span><span class="cmd-formula">brew install amineer/tap/rnest</span></code><button class="copy" type="button" data-copy=".cmd-formula">Copy</button></div>
+          <div class="copyline"><code><span class="p">$ </span><span class="cmd-formula">brew trust amineer/tap &amp;&amp; brew install amineer/tap/rnest</span></code><button class="copy" type="button" data-copy=".cmd-formula">Copy</button></div>
           <div class="dl-list">
             <a href="https://github.com/AMineer/rasternest_app/releases/latest/download/rnest-linux-x86_64.tar.gz">rnest-linux-x86_64.tar.gz <small>Intel/AMD</small></a>
             <a href="https://github.com/AMineer/rasternest_app/releases/latest/download/rnest-linux-aarch64.tar.gz">rnest-linux-aarch64.tar.gz <small>ARM</small></a>

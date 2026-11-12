@@ -1,21 +1,18 @@
 class Rnest < Formula
   desc "RasterNest command-line screen capture, OCR and export"
-  homepage "https://github.com/{{REPO}}"
-  version "{{VERSION}}"
+  homepage "https://rasternest.app"
+  # macOS: universal binary. Linux builds override the URL below.
+  url "https://github.com/{{REPO}}/releases/download/v{{VERSION}}/rnest-{{VERSION}}-macos-universal.tar.gz"
+  sha256 "{{SHA_MACOS}}"
   license "MIT"
-
-  on_macos do
-    url "https://github.com/{{REPO}}/releases/download/v#{version}/rnest-#{version}-macos-universal.tar.gz"
-    sha256 "{{SHA_MACOS}}"
-  end
 
   on_linux do
     on_intel do
-      url "https://github.com/{{REPO}}/releases/download/v#{version}/rnest-#{version}-linux-x86_64.tar.gz"
+      url "https://github.com/{{REPO}}/releases/download/v{{VERSION}}/rnest-{{VERSION}}-linux-x86_64.tar.gz"
       sha256 "{{SHA_LINUX_X86_64}}"
     end
     on_arm do
-      url "https://github.com/{{REPO}}/releases/download/v#{version}/rnest-#{version}-linux-aarch64.tar.gz"
+      url "https://github.com/{{REPO}}/releases/download/v{{VERSION}}/rnest-{{VERSION}}-linux-aarch64.tar.gz"
       sha256 "{{SHA_LINUX_AARCH64}}"
     end
   end

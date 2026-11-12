@@ -53,11 +53,13 @@ rnest displays | rnest windows | rnest backends
 
 **Homebrew (macOS)**: app plus `rnest`:
 ```sh
+brew trust amineer/tap      # once: Homebrew 7 asks you to trust third-party taps
 brew install --cask amineer/tap/rasternest
 ```
 
 **Homebrew (Linux or CLI only)**:
 ```sh
+brew trust amineer/tap
 brew install amineer/tap/rnest
 ```
 

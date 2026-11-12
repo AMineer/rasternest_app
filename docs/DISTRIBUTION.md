@@ -31,7 +31,7 @@ Add these repository secrets, then push a tag such as `v0.2.0`:
 | `MACOS_CERT_PASSWORD` | the .p12 export password |
 | `MACOS_SIGN_IDENTITY` | `Developer ID Application: Your Name (TEAMID)` |
 | `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | notarization login |
-| `HOMEBREW_TAP_TOKEN` | fine-grained PAT with write access to `AMineer/homebrew-tap` |
+| `HOMEBREW_TAP_DEPLOY_KEY` | private half of an SSH deploy key with write access to `AMineer/homebrew-tap` (or `HOMEBREW_TAP_TOKEN`, a fine-grained PAT) |
 
 `.github/workflows/release.yml` then:
 - builds a universal, signed and notarized `RasterNest-x.y.z.dmg`
@@ -46,6 +46,7 @@ Without the secrets, the release still builds, but ad-hoc signed and not notariz
 Create an empty public repo named **`homebrew-tap`** under the same owner. Users then run:
 
 ```sh
+brew trust amineer/tap                       # once (Homebrew 7+ requires trusting third-party taps)
 brew install --cask amineer/tap/rasternest   # app + rnest (macOS)
 brew install amineer/tap/rnest               # CLI only (macOS or Linux)
 ```

@@ -84,7 +84,7 @@ struct SettingsView: View {
             }
 
             Section("Command line") {
-                Text("Use `rnest capture`, `rnest ocr` and `rnest export` from Terminal. Installed with `brew install --cask rasternest`.")
+                Text("Use `rnest capture`, `rnest ocr` and `rnest export` from Terminal. Installed with `brew install --cask amineer/tap/rasternest`.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

@@ -300,7 +300,7 @@ func openInEditor(_ url: URL) throws {
     #if os(macOS)
     let result = try Shell.run("/usr/bin/open", ["-b", RasterNestInfo.bundleIdentifier, url.path])
     if result.status != 0 {
-        throw CaptureFailure.notFound("Couldn't open RasterNest.app. Install it with `brew install --cask rasternest`.")
+        throw CaptureFailure.notFound("Couldn't open RasterNest.app. Install it with `brew trust amineer/tap && brew install --cask amineer/tap/rasternest`.")
     }
     #else
     throw CaptureFailure.unsupported("The RasterNest editor is macOS-only for now.")

@@ -7,7 +7,8 @@ name: Release
 #   MACOS_CERT_PASSWORD     Password for the .p12
 #   MACOS_SIGN_IDENTITY     e.g. "Developer ID Application: Your Name (TEAMID)"
 #   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD   for notarization
-#   HOMEBREW_TAP_TOKEN      PAT with push access to AMineer/homebrew-tap
+#   HOMEBREW_TAP_DEPLOY_KEY SSH deploy key with write access to <owner>/homebrew-tap (preferred)
+#   HOMEBREW_TAP_TOKEN      or: a fine-grained PAT with push access to that repo
 
 on:
   push:
@@ -82,6 +83,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
       - run: echo "${GITHUB_REF_NAME#v}" > VERSION
@@ -110,9 +112,19 @@ jobs:
             homebrew-out/Formula/rnest.rb
           generate_release_notes: true
       - name: Update Homebrew tap
-        if: env.HOMEBREW_TAP_TOKEN != ''
+        if: env.HOMEBREW_TAP_DEPLOY_KEY != '' || env.HOMEBREW_TAP_TOKEN != ''
         run: |
-          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/homebrew-tap.git" tap
+          if [ -n "$HOMEBREW_TAP_DEPLOY_KEY" ]; then
+            mkdir -p ~/.ssh
+            printf '%s\n' "$HOMEBREW_TAP_DEPLOY_KEY" > ~/.ssh/tap_key
+            chmod 600 ~/.ssh/tap_key
+            # GitHub's published ED25519 host key
+            echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts
+            export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o IdentitiesOnly=yes"
+            git clone "git@github.com:${GITHUB_REPOSITORY_OWNER}/homebrew-tap.git" tap
+          else
+            git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/homebrew-tap.git" tap
+          fi
           mkdir -p tap/Casks tap/Formula
           cp homebrew-out/Casks/rasternest.rb tap/Casks/
           cp homebrew-out/Formula/rnest.rb tap/Formula/
