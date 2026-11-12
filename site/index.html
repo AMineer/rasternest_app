@@ -551,7 +551,8 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
     })
     .catch(() => {
       document.querySelectorAll(".version").forEach((el) => (el.textContent = "First release coming soon"));
-      document.querySelectorAll("a.dl-dmg").forEach((a) => (a.href = `https://github.com/${REPO}/releases`));
+      // No release yet: every direct download link points at the Releases page instead of a 404.
+      document.querySelectorAll('a[href*="/releases/latest/download/"]').forEach((a) => (a.href = `https://github.com/${REPO}/releases`));
     });
 })();
 </script>
