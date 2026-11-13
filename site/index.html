@@ -256,6 +256,13 @@ section.alt .panel { background: var(--bg); }
 .note p { color: var(--muted); }
 .note b { color: var(--fg); }
 
+.support { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; max-width: 880px; }
+@media (max-width: 760px) { .support { grid-template-columns: minmax(0, 1fr); } }
+.support .panel p { color: var(--muted); }
+.support .btn { align-self: flex-start; }
+.btn-coffee { background: #FFDD00; color: #0B1020; }
+.btn-coffee:hover { background: #F5D000; }
+
 footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px; font-size: var(--step--1); }
 .foot { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
 .foot .brand { color: var(--on-ink); }
@@ -444,7 +451,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
       <div class="section-head">
         <span class="eyebrow">Download</span>
         <h2>Install RasterNest</h2>
-        <p>Pick whichever suits you. Every option installs the same build from the latest GitHub release. RasterNest is free; if it saves you time, you can <a href="https://github.com/sponsors/A2M4-Systems-LLC" rel="noopener">sponsor its development</a>.</p>
+        <p>Pick whichever suits you. Every option installs the same build from the latest GitHub release. RasterNest is free; if it saves you time, you can <a href="#support">support its development</a>.</p>
       </div>
       <div class="install">
         <div class="panel">
@@ -519,6 +526,29 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
       </div>
     </div>
   </section>
+  <section class="block" id="support">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">Support</span>
+        <h2>Keep RasterNest free</h2>
+        <p>RasterNest is free and open source, with no subscription, ads or telemetry. If it saves you time, a sponsorship pays for the code-signing certificates and the time to build what&rsquo;s next, starting with Windows.</p>
+      </div>
+      <div class="support">
+        <div class="panel frame">
+          <span class="os-tag">Monthly or one-time</span>
+          <h3>GitHub Sponsors</h3>
+          <p>Sponsor from your GitHub account. Sponsorships from personal accounts go to the project with no platform fee.</p>
+          <a class="btn btn-violet" href="https://github.com/sponsors/A2M4-Systems-LLC" rel="noopener">Sponsor on GitHub</a>
+        </div>
+        <div class="panel frame">
+          <span class="os-tag">No account needed</span>
+          <h3>Buy me a coffee</h3>
+          <p>Leave a one-off tip, or make it monthly, with a card. No GitHub account required.</p>
+          <a class="btn btn-coffee" href="https://buymeacoffee.com/rasternest" rel="noopener">Buy me a coffee</a>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer>
@@ -529,7 +559,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
     <a href="https://github.com/AMineer/rasternest_app" rel="noopener">Source on GitHub</a>
     <a href="https://github.com/AMineer/rasternest_app/releases" rel="noopener">Release notes</a>
     <a href="https://github.com/AMineer/rasternest_app/issues" rel="noopener">Report an issue</a>
-    <a href="https://github.com/sponsors/A2M4-Systems-LLC" rel="noopener">Sponsor ♥</a>
+    <a href="#support">Support ♥</a>
     <span>MIT licence</span>
   </div>
 </footer>
