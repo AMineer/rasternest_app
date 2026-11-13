@@ -4,6 +4,8 @@ import SwiftUI
 /// RasterNest brand colors and marks (see docs/BRAND.md).
 enum Brand {
     static let tagline = "Capture. Refine. Share."
+    static let sponsorURL = URL(string: "https://github.com/sponsors/A2M4-Systems-LLC")!
+    static func openSponsor() { NSWorkspace.shared.open(sponsorURL) }
 
     static let violet = NSColor(srgbRed: 0x7C / 255, green: 0x3A / 255, blue: 0xED / 255, alpha: 1)   // #7C3AED primary
     static let sky = NSColor(srgbRed: 0x0E / 255, green: 0xA5 / 255, blue: 0xE9 / 255, alpha: 1)      // #0EA5E9 accent
