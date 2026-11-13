@@ -21,7 +21,7 @@
 
 **Open-source screen capture and markup.** Grab an area, window or screen with one shortcut, mark it up with arrows, callouts, step numbers and redaction, then copy, drag or export it. Native on macOS, with a scriptable `rnest` CLI for macOS and Linux.
 
-> Status: early (v0.1). macOS app + CLI work today; Linux is CLI-only; Windows is on the roadmap.
+> Status: early (v0.4). macOS app + CLI work today; Linux is CLI-only; Windows is on the roadmap.
 
 ## Features
 
@@ -63,6 +63,17 @@ rnest export notes.rasternest --format png
 rnest displays | rnest windows | rnest backends
 ```
 
+**For AI agents and scripts**: name what's on screen instead of measuring pixels
+```sh
+rnest ocr shot.png --json                         # every line and word with its box
+rnest ocr shot.png --find "Save"                  # just where "Save" is
+rnest annotate shot.png --step Save --arrow Allow --redact email --frame docs
+rnest annotate shot.png --spec markup.json -o shot.rasternest   # stays editable in the app
+rnest guide run setup-guide.json                  # rebuild every screenshot in a guide
+claude mcp add rasternest -- rnest mcp            # let Claude capture and annotate
+```
+See [docs/AGENTS.md](docs/AGENTS.md) for the spec and guide formats and the MCP tools.
+
 ## Install
 
 **Homebrew (macOS)**: app plus `rnest`:
@@ -77,7 +88,7 @@ brew trust amineer/tap
 brew install amineer/tap/rnest
 ```
 
-**Direct download**: grab `RasterNest-x.y.z.dmg` from [Releases](../../releases) and drag it to Applications. From 0.4 on, RasterNest updates itself (Check for Updates… in the menu bar menu).
+**Direct download**: grab `RasterNest-x.y.z.dmg` from [Releases](../../releases) and drag it to Applications. From 0.4 on, RasterNest updates itself (Check for Updates… in the menu bar menu). To use `rnest` with a DMG install, choose **Install Command Line Tool…** from the menu bar menu.
 
 On first capture, macOS asks for **Screen Recording** permission (System Settings › Privacy & Security › Screen & System Audio Recording). When you use `rnest` from a terminal, the permission belongs to that terminal app.
 
@@ -123,9 +134,17 @@ open "rasternest://scrolling?rect=0,120,900,700"   # scroll-capture an exact are
 
 - [Architecture](docs/ARCHITECTURE.md): how the package is layered and how to add a platform
 - [Distribution](docs/DISTRIBUTION.md): signing, notarization, DMG hosting, Homebrew tap
+- [AI agents](docs/AGENTS.md): OCR boxes, annotation specs, guides and the MCP server
 - [Roadmap](docs/ROADMAP.md): feature parity checklist
 - [Brand](docs/BRAND.md): logo, colors and type
 - [Contributing](CONTRIBUTING.md)
+
+## Support
+
+RasterNest is free and open source. If it saves you time, you can help pay for code signing and new features:
+
+- [Sponsor on GitHub](https://github.com/sponsors/A2M4-Systems-LLC) (monthly or one-time)
+- [Buy me a coffee](https://buymeacoffee.com/rasternest) (no GitHub account needed)
 
 ## License
 
