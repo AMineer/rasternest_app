@@ -28,7 +28,7 @@ var targets: [Target] = [
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ]
     ),
-    .testTarget(name: "RasterNestCoreTests", dependencies: ["RasterNestCore"]),
+    .testTarget(name: "RasterNestCoreTests", dependencies: ["RasterNestCore", "RasterNestCapture"]),
 ]
 
 var dependencies: [Package.Dependency] = [

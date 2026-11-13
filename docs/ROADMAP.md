@@ -41,6 +41,14 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ⬜ Share targets (upload to S3, Imgur, Slack, custom webhook)
 - ✅ PDF export (single capture, multi-capture guides, `rnest export --format pdf`)
 
+## Agents & automation
+- ✅ `rnest ocr --json` / `--find`: text with pixel boxes
+- ✅ Annotation specs (`rnest annotate`): anchor markup to on-screen text, pattern-based redaction
+- ✅ Guides (`rnest guide run`): rebuild every screenshot in a doc when the UI changes
+- ✅ MCP server (`rnest mcp`) for Claude and other agents
+- ⬜ Linux rendering for `annotate` PNG output and `guide run` (`annotate` to `.rasternest` works today)
+- ⬜ Guide steps that click or type (UI automation) before capturing
+
 ## Platform
 - ✅ macOS 14+ native app
 - ✅ Homebrew cask + formula, signed/notarized DMG pipeline

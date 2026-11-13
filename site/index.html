@@ -497,6 +497,10 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/></svg>
             <p><b>Automation links.</b> <code>open rasternest://capture</code>, <code>rasternest://fullscreen</code> and <code>rasternest://text</code> trigger the app from anywhere.</p>
           </div>
+          <div class="note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+            <p><b>Built for AI agents.</b> Place markup by the text on screen (<code>--step Save</code>), redact emails and tokens by pattern, rebuild whole guides with <code>rnest guide run</code>, or let Claude drive it with <code>rnest mcp</code>. <a href="https://github.com/AMineer/rasternest_app/blob/main/docs/AGENTS.md" rel="noopener">Agent docs</a>.</p>
+          </div>
         </div>
       </div>
       <div class="terminal" role="region" aria-label="rnest examples">
@@ -519,6 +523,12 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
 
 <span class="c"># turn a recording into a GIF</span>
 <span class="p">$ </span>rnest export demo.mp4 --format gif --width 640
+
+<span class="c"># number the steps by what's on screen, hide emails</span>
+<span class="p">$ </span>rnest annotate shot.png --step Save --step Allow --redact email
+
+<span class="c"># let Claude capture and annotate for you</span>
+<span class="p">$ </span>claude mcp add rasternest -- rnest mcp
 
 <span class="c"># list windows, then capture one by id</span>
 <span class="p">$ </span>rnest windows

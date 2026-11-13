@@ -23,6 +23,7 @@ enum MainMenu {
         main.addItem(submenu("RasterNest", [
             item("About RasterNest", "showAbout:"),
             item("Check for Updates…", "checkForUpdates:"),
+            item("Install Command Line Tool…", "installCLI:"),
             item("Support RasterNest…", "openSponsor:"),
             .separator(),
             item("Settings…", "showSettings:", ","),

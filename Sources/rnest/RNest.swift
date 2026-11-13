@@ -13,7 +13,8 @@ struct RNest: AsyncParsableCommand {
         commandName: "rnest",
         abstract: "RasterNest: capture, annotate and share screenshots from the command line.",
         version: RasterNestInfo.version,
-        subcommands: [Capture.self, OCR.self, Export.self, Edit.self, Displays.self, Windows.self, Backends.self],
+        subcommands: [Capture.self, OCR.self, Annotate.self, Export.self, GuideCommand.self, MCPCommand.self, Edit.self,
+                      Displays.self, Windows.self, Backends.self],
         defaultSubcommand: Capture.self
     )
 }
@@ -151,13 +152,32 @@ struct OCR: AsyncParsableCommand {
     @Flag(name: [.customShort("c"), .long], help: "Also copy the text to the clipboard.")
     var clipboard = false
 
+    @Flag(name: .long, help: "Print lines and words with their positions (image pixels, origin top-left) as JSON.")
+    var json = false
+
+    @Option(name: .long, help: "Print only the box of this text as JSON (best match first; see --all).")
+    var find: String?
+
+    @Flag(name: .long, help: "With --find, print every match instead of the best one.")
+    var all = false
+
     func run() async throws {
         let data = image == "-"
             ? FileHandle.standardInput.readDataToEndOfFile()
             : try Data(contentsOf: URL(fileURLWithPath: (image as NSString).expandingTildeInPath))
-        let text = try await TextRecognition.recognize(imageData: data)
-        print(text)
-        if clipboard { try Clipboard.copyText(text) }
+        let pngData = try AgentOps.pngData(data, name: image)
+        let result = try await TextRecognition.analyze(imageData: pngData)
+        if let find {
+            let boxes = TextMatcher.matches(of: find, in: result.lines)
+            guard !boxes.isEmpty else {
+                printErr("\"\(find)\" not found.")
+                throw ExitCode.failure
+            }
+            return try printJSON(all ? AnyEncodable(boxes) : AnyEncodable(boxes[0]))
+        }
+        if json { return try printJSON(result) }
+        print(result.text)
+        if clipboard { try Clipboard.copyText(result.text) }
     }
 }
 
@@ -211,6 +231,11 @@ struct Export: AsyncParsableCommand {
     }
 
     func run() async throws {
+        if let url = try await perform() { print(url.path) }
+    }
+
+    /// Does the export and returns the file written (nil when writing to stdout).
+    func perform() async throws -> URL? {
         #if canImport(RasterNestRender)
         let input = inputs[0]
         let inURL = URL(fileURLWithPath: (input as NSString).expandingTildeInPath)
@@ -229,8 +254,7 @@ struct Export: AsyncParsableCommand {
             let outURL = output.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
                 ?? inURL.deletingPathExtension().appendingPathExtension("pdf")
             try PDFComposer.write(pages, to: outURL, pageSize: size, title: outURL.deletingPathExtension().lastPathComponent)
-            print(outURL.path)
-            return
+            return outURL
         }
         if ["mp4", "mov", "m4v"].contains(inURL.pathExtension.lowercased()) {
             if let format, format.lowercased() != "gif" { throw ValidationError("Recordings can only be exported as gif.") }
@@ -239,8 +263,7 @@ struct Export: AsyncParsableCommand {
                 ?? inURL.deletingPathExtension().appendingPathExtension("gif")
             try await GIFEncoder.convert(video: inURL, to: outURL,
                                          options: GIFEncoder.Options(fps: fps, maxWidth: width == 0 ? nil : width))
-            print(outURL.path)
-            return
+            return outURL
         }
         let fmt: ExportFormat
         if let format {
@@ -260,12 +283,12 @@ struct Export: AsyncParsableCommand {
         if clipboard { try Clipboard.copyPNG(fmt == .png ? data : ImageCodec.encode(image, format: .png, scale: scale) ?? data) }
         if output == "-" {
             FileHandle.standardOutput.write(data)
-            return
+            return nil
         }
         let outURL = output.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
             ?? inURL.deletingPathExtension().appendingPathExtension(fmt.rawValue)
         try data.write(to: outURL, options: .atomic)
-        print(outURL.path)
+        return outURL
         #else
         throw CaptureFailure.unsupported("`rnest export` currently needs macOS; Linux rendering is on the roadmap.")
         #endif
@@ -368,6 +391,12 @@ func openInEditor(_ url: URL) throws {
 
 func printErr(_ s: String) {
     FileHandle.standardError.write(Data((s + "\n").utf8))
+}
+
+struct AnyEncodable: Encodable {
+    let value: Encodable
+    init(_ value: Encodable) { self.value = value }
+    func encode(to encoder: Encoder) throws { try value.encode(to: encoder) }
 }
 
 func printJSON<T: Encodable>(_ value: T) throws {
