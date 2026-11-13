@@ -11,6 +11,7 @@
   <a href="https://rasternest.app"><img alt="Website" src="https://img.shields.io/badge/rasternest.app-7C3AED?style=flat-square"></a>
   <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-0B1020?style=flat-square&logo=apple">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?style=flat-square&logo=swift&logoColor=white">
+  <a href="https://github.com/sponsors/A2M4-Systems-LLC"><img alt="Sponsor" src="https://img.shields.io/badge/sponsor-%E2%99%A5-DB2777?style=flat-square&logo=githubsponsors&logoColor=white"></a>
   <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0EA5E9?style=flat-square"></a>
   <a href="https://github.com/AMineer/rasternest_app/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/AMineer/rasternest_app/ci.yml?branch=main&style=flat-square&label=CI"></a>
 </p>

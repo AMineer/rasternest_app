@@ -115,6 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showSettings(_ sender: Any?) { SettingsWindowController.shared.show() }
     @objc func showAbout(_ sender: Any?) { Brand.showAbout() }
     @objc func checkForUpdates(_ sender: Any?) { Updater.shared.checkForUpdates(sender) }
+    @objc func openSponsor(_ sender: Any?) { Brand.openSponsor() }
 }
 
 /// The app lives in the menu bar; it shows in the Dock only while it has windows open.
