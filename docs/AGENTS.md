@@ -2,7 +2,7 @@
 
 RasterNest's CLI is built so a script or an AI agent can write documentation screenshots without doing pixel math:
 
-1. **Capture** a window by app name.
+1. **Capture** a window by app name, or **record** it to a GIF.
 2. **Read** where the text is with `rnest ocr --json`.
 3. **Annotate** by naming what's on screen: "step 1 on *Save*, arrow to *Allow*, redact emails".
 4. **Rebuild** a whole guide with `rnest guide run` when the UI changes.
@@ -10,6 +10,23 @@ RasterNest's CLI is built so a script or an AI agent can write documentation scr
 All four are also available to Claude and other agents through the MCP server, `rnest mcp`.
 
 Coordinates are always **image pixels, origin top-left**. A Retina capture is twice the size of the screen points it shows. `rnest ocr --json` reports the image's `scale`.
+
+## Recording GIFs and MP4s
+
+```sh
+rnest record --app Safari --duration 8 -o demo.gif           # one window, 8 seconds, straight to GIF
+rnest record --rect 0,120,900,600 --duration 5 --gif         # an area: MP4 plus a GIF beside it
+rnest record --app Terminal --run './demo.sh' -o demo.gif    # record while a script runs, stop when it ends
+rnest record --fullscreen                                    # until Return or Ctrl-C
+```
+
+- **What to record:** `--app` (with `--title`) or `--window-id` records just that window, even if something covers it. `--rect` records an area, and `--fullscreen`/`--display` a whole display (the default).
+- **When to stop:** after `--duration`, when the `--run` command exits, or when you press Return or Ctrl-C.
+- **Output:** `-o x.gif` makes only a GIF; `-o x.mp4 --gif` keeps both.
+- **GIF size:** defaults to 800 px wide at 12 fps. Change it with `--gif-width` (0 = full size) and `--gif-fps`.
+- **Video options:** `--fps` sets the frame rate. `--audio` (system audio) and `--mic` apply to the MP4 only, and `--no-cursor` hides the pointer.
+
+The video only gets new frames when the screen changes, but it still runs for the full recording time, so pauses come out the right length.
 
 ## OCR with positions
 
@@ -180,6 +197,7 @@ Use the full path that `which rnest` prints. If you installed from the DMG, choo
 
 | Tool | What it does |
 |---|---|
+| `record` | Records a window (`app`/`title`, `window_id`), a `rect` or a display to a GIF, an MP4 or both. It stops after `duration` (default 5 s, max 120), or when the `during` shell command finishes, so an agent can drive the demo with AppleScript or `open`. Returns the paths and a frame from the middle. |
 | `capture` | Captures a window by `app`/`title`, a `window_id`, a `rect`, a whole display, or lets the user pick (`interactive`). Returns the path, the size and a preview image. |
 | `ocr` | Text with boxes for an image. `find` returns just one piece of text. |
 | `annotate` | Applies a list of spec annotations. Saves a PNG and an editable `.rasternest`, and returns a preview. |
@@ -200,6 +218,7 @@ Captures from the MCP server go to `~/Pictures/RasterNest/agent/` unless the age
 
 | | macOS | Linux |
 |---|---|---|
+| `record` | ✓ | not yet |
 | `ocr --json` | Vision | tesseract |
 | `annotate` → `.rasternest` | ✓ | ✓ |
 | `annotate` → `.png`/`.jpg` | ✓ | not yet |

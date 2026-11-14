@@ -4,6 +4,7 @@ import RasterNestCapture
 import RasterNestCore
 #if canImport(RasterNestRender)
 import AppKit
+import AVFoundation
 import CoreGraphics
 import RasterNestRender
 #endif
@@ -256,4 +257,126 @@ enum AgentOps {
         #endif
         return report
     }
+}
+
+// MARK: - recording
+
+/// A thread-safe stop flag: set by Ctrl-C, the Return key, a finished `during` command, or a timer.
+final class StopFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stopped = false
+    var isSet: Bool { lock.lock(); defer { lock.unlock() }; return stopped }
+    func set() { lock.lock(); stopped = true; lock.unlock() }
+}
+
+extension AgentOps {
+    struct RecordRequest {
+        var capture = Guide.CaptureSpec()
+        var windowID: UInt32?
+        /// Seconds to record. Nil: until `during` finishes, or until stopped.
+        var duration: Double?
+        /// Shell command started once recording is running (drive the UI, open a URL…).
+        var during: String?
+        var workingDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        var fps = 30
+        var cursor = true
+        var clicks = true
+        var systemAudio = false
+        var microphone = false
+        /// Where to keep the MP4 (nil = don't keep it).
+        var mp4: URL?
+        /// Where to write a GIF (nil = no GIF).
+        var gif: URL?
+        var gifWidth = 800
+        var gifFPS = 12.0
+        /// Cap for recordings with no duration, so nothing records forever by accident.
+        var maxDuration = 600.0
+    }
+
+    struct RecordResult {
+        var mp4: URL?
+        var gif: URL?
+        var seconds: Double
+        var pixelSize: CGSize
+    }
+
+    static func record(_ req: RecordRequest, stop: StopFlag = StopFlag(), log: (String) -> Void) async throws -> RecordResult {
+        #if canImport(RasterNestRender)
+        guard req.mp4 != nil || req.gif != nil else { throw ValidationError("Choose an MP4 or GIF output.") }
+        let target: HeadlessRecorder.Target
+        if let id = req.windowID {
+            target = .window(id)
+        } else if req.capture.window != nil || req.capture.app != nil {
+            target = .window(try await findWindow(req.capture, capturer: Capturers.make()).id)
+        } else if let r = req.capture.rect {
+            guard r.count == 4, r[2] > 0, r[3] > 0 else { throw ValidationError("`rect` must be [x, y, width, height].") }
+            target = .rect(CGRect(x: r[0], y: r[1], width: r[2], height: r[3]))
+        } else {
+            target = .display(req.capture.display)
+        }
+
+        let recorder = HeadlessRecorder(target: target, options: .init(
+            fps: req.fps, showsCursor: req.cursor, showClicks: req.clicks,
+            systemAudio: req.systemAudio, microphone: req.microphone))
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("rnest-\(UUID().uuidString).mp4")
+        try await recorder.start(to: tmp)
+        let started = Date()
+
+        var duringProcess: Process?
+        if let during = req.during {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/bin/sh")
+            p.arguments = ["-c", during]
+            p.currentDirectoryURL = req.workingDirectory
+            p.standardOutput = FileHandle.standardError
+            p.terminationHandler = { _ in
+                // A short tail so the last change makes it into the video.
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.6) { if req.duration == nil { stop.set() } }
+            }
+            try p.run()
+            duringProcess = p
+        }
+
+        let limit = req.duration ?? req.maxDuration
+        while !stop.isSet && Date().timeIntervalSince(started) < limit {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        if let p = duringProcess, p.isRunning { p.terminate() }
+        let mp4 = try await recorder.stop()
+        let seconds = Date().timeIntervalSince(started)
+        log(String(format: "Recorded %.1f s at %d×%d.", seconds, Int(recorder.pixelSize.width), Int(recorder.pixelSize.height)))
+
+        var result = RecordResult(seconds: seconds, pixelSize: recorder.pixelSize)
+        if let gif = req.gif {
+            try FileManager.default.createDirectory(at: gif.deletingLastPathComponent(), withIntermediateDirectories: true)
+            log("Making GIF…")
+            try await GIFEncoder.convert(video: mp4, to: gif, options: .init(fps: req.gifFPS, maxWidth: req.gifWidth == 0 ? nil : req.gifWidth))
+            result.gif = gif
+        }
+        if let dest = req.mp4 {
+            try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? FileManager.default.removeItem(at: dest)
+            try FileManager.default.moveItem(at: mp4, to: dest)
+            result.mp4 = dest
+        } else {
+            try? FileManager.default.removeItem(at: mp4)
+        }
+        return result
+        #else
+        throw CaptureFailure.unsupported("Screen recording needs macOS for now.")
+        #endif
+    }
+
+    #if canImport(RasterNestRender)
+    /// A frame from the middle of a video, as a small JPEG preview.
+    static func videoPreview(_ url: URL) async -> Data? {
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        let duration = (try? await asset.load(.duration).seconds) ?? 0
+        let time = CMTime(seconds: max(0, duration / 2), preferredTimescale: 600)
+        guard let image = try? await generator.image(at: time).image else { return nil }
+        return preview(image, maxSide: 1200)
+    }
+    #endif
 }

@@ -57,6 +57,8 @@ rnest capture --fullscreen -c       # whole display → clipboard
 rnest capture --rect 0,0,800,600    # exact rectangle
 rnest capture --region --text       # OCR an area, print the text
 rnest ocr screenshot.png
+rnest record --app Safari --duration 8 -o demo.gif   # record a window straight to GIF
+rnest record --rect 0,120,900,600 --gif              # area → MP4 + GIF (Return to stop)
 rnest export demo.mp4 --format gif --width 640   # recording → GIF
 rnest export step1.rasternest step2.rasternest --format pdf --page-size letter --captions -o guide.pdf
 rnest export notes.rasternest --format png

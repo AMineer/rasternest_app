@@ -195,7 +195,7 @@ struct MCPCommand: AsyncParsableCommand {
 
 enum MCPTools {
     static let instructions = """
-    RasterNest captures and annotates screenshots for documentation. Typical flow: `capture` (a window by app name \
+    RasterNest captures, records and annotates screenshots for documentation. Use `record` for a GIF of something happening. Typical screenshot flow: `capture` (a window by app name \
     is usually best), look at the preview, call `ocr` to see what text is where, then `annotate` using text anchors \
     such as {"text": "Save"} rather than pixel coordinates. All coordinates are full-size image pixels with the origin \
     at the top-left; previews may be scaled down. Redact personal data (pattern "email", "phone", "token") before sharing. \
@@ -289,6 +289,77 @@ enum MCPTools {
                     try shot.png.write(to: url, options: .atomic)
                     let doc = NestDocument(imagePNG: shot.png, pixelScale: CGFloat(shot.scale), annotations: [])
                     return describe(url, doc: doc, includeImage: args["include_image"]?.bool ?? true)
+                }
+            ),
+            MCPTool(
+                name: "record",
+                description: "Record the screen to a GIF (and/or MP4) for docs or demos (macOS). Target `app` (front window of that app), `window_id`, `rect` (screen points) or a whole display. Recording lasts `duration` seconds, or, with `during`, until that shell command finishes. Use `during` to drive the demo (e.g. an AppleScript or `open` command); otherwise the user acts while it records. Returns file paths and a preview frame.",
+                inputSchema: [
+                    "type": "object",
+                    "properties": [
+                        "app": ["type": "string", "description": "Record this app's front window."],
+                        "title": ["type": "string", "description": "With app: part of the window title."],
+                        "window_id": ["type": "integer"],
+                        "rect": ["type": "array", "items": ["type": "number"], "description": "[x, y, width, height] in screen points."],
+                        "display": ["type": "integer"],
+                        "duration": ["type": "number", "description": "Seconds (default 5 when `during` is not given; max 120)."],
+                        "during": ["type": "string", "description": "Shell command run while recording; recording stops when it exits unless duration is set."],
+                        "delay": ["type": "number", "description": "Seconds to wait before starting."],
+                        "format": ["type": "string", "description": "gif (default), mp4, or both."],
+                        "output": ["type": "string", "description": "Output path (.gif or .mp4). Default: ~/Pictures/RasterNest/agent/<timestamp>."],
+                        "gif_width": ["type": "integer", "description": "GIF width in pixels (default 800; 0 = full size)."],
+                        "gif_fps": ["type": "number", "description": "GIF frame rate (default 12)."],
+                        "cursor": ["type": "boolean", "description": "Show the pointer (default true)."],
+                        "include_image": ["type": "boolean", "description": "Return a preview frame (default true)."],
+                    ],
+                ],
+                handler: { args in
+                    var req = AgentOps.RecordRequest()
+                    req.windowID = args["window_id"]?.int.map(UInt32.init)
+                    req.capture = Guide.CaptureSpec(app: string(args, "app"), title: string(args, "title"),
+                                                    rect: args["rect"]?.array?.compactMap(\.double), display: args["display"]?.int)
+                    req.during = string(args, "during")
+                    req.duration = min(120, args["duration"]?.double ?? (req.during == nil ? 5 : 0))
+                    if req.duration == 0 { req.duration = nil }
+                    req.maxDuration = 120
+                    req.cursor = args["cursor"]?.bool ?? true
+                    req.gifWidth = args["gif_width"]?.int ?? 800
+                    req.gifFPS = args["gif_fps"]?.double ?? 12
+                    let format = (string(args, "format") ?? "gif").lowercased()
+                    let base = string(args, "output").map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+                    let stem = (base ?? outputURL(nil, ext: "gif")).deletingPathExtension()
+                    switch base?.pathExtension.lowercased() ?? format {
+                    case "mp4", "mov": req.mp4 = base ?? stem.appendingPathExtension("mp4")
+                    case "both": req.mp4 = stem.appendingPathExtension("mp4"); req.gif = stem.appendingPathExtension("gif")
+                    default: req.gif = base ?? stem.appendingPathExtension("gif")
+                    }
+                    if format == "both" && base != nil {
+                        req.mp4 = stem.appendingPathExtension("mp4"); req.gif = stem.appendingPathExtension("gif")
+                    }
+                    if let delay = args["delay"]?.double, delay > 0 { try await Task.sleep(nanoseconds: UInt64(delay * 1e9)) }
+                    let result = try await AgentOps.record(req) { printErr($0) }
+                    var meta: [String: JSONValue] = [
+                        "seconds": .number((result.seconds * 10).rounded() / 10),
+                        "width": .number(Double(result.pixelSize.width)), "height": .number(Double(result.pixelSize.height)),
+                    ]
+                    if let gif = result.gif {
+                        meta["gif"] = .string(gif.path)
+                        let size = (try? FileManager.default.attributesOfItem(atPath: gif.path)[.size] as? Int) ?? 0
+                        meta["gif_bytes"] = .number(Double(size))
+                    }
+                    if let mp4 = result.mp4 { meta["mp4"] = .string(mp4.path) }
+                    var out: [MCPContent] = [.text(json(JSONValue.object(meta)))]
+                    #if canImport(RasterNestRender)
+                    let video = result.mp4
+                    if args["include_image"]?.bool ?? true {
+                        if let video, let jpeg = await AgentOps.videoPreview(video) {
+                            out.append(.image(base64: jpeg.base64EncodedString(), mimeType: "image/jpeg"))
+                        } else if let gif = result.gif, let (img, _) = ImageCodec.load(gif), let jpeg = AgentOps.preview(img, maxSide: 1200) {
+                            out.append(.image(base64: jpeg.base64EncodedString(), mimeType: "image/jpeg"))
+                        }
+                    }
+                    #endif
+                    return out
                 }
             ),
             MCPTool(
@@ -445,5 +516,135 @@ enum MCPTools {
                 }
             ),
         ]
+    }
+}
+
+// MARK: - record
+
+struct Record: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Record the screen, a window or an area to MP4 and/or GIF (macOS).",
+        discussion: """
+        Stops after --duration, when the --run command finishes, or when you press Return or Ctrl-C.
+
+        Examples:
+          rnest record --app Safari --duration 8 -o demo.gif
+          rnest record --rect 0,120,900,600 --duration 5 --gif          MP4 plus a GIF beside it
+          rnest record --fullscreen                                      until Return / Ctrl-C
+          rnest record --app Terminal --run './demo.sh' -o demo.gif      record while a script runs
+        """
+    )
+
+    @Flag(name: [.customShort("f"), .long], help: "Record a whole display (default when no target is given).")
+    var fullscreen = false
+
+    @Option(name: .long, help: "Display index for --fullscreen (see `rnest displays`).")
+    var display: Int?
+
+    @Option(name: .long, help: "Area in points: x,y,width,height (origin top-left of the main display).")
+    var rect: String?
+
+    @Option(name: .customLong("window-id"), help: "Record one window (see `rnest windows`).")
+    var windowID: UInt32?
+
+    @Option(name: .long, help: "Record the front window of this app.")
+    var app: String?
+
+    @Option(name: .long, help: "With --app: a window whose title contains this.")
+    var title: String?
+
+    @Option(name: [.customShort("d"), .long], help: "Seconds to record.")
+    var duration: Double?
+
+    @Option(name: .customLong("run"), help: "Shell command to run once recording starts; recording stops when it exits (unless --duration is set).")
+    var runCommand: String?
+
+    @Option(name: .shortAndLong, help: "Output .mp4 or .gif. Default: ~/Pictures/RasterNest/<timestamp>.mp4")
+    var output: String?
+
+    @Flag(name: .long, help: "Also write a GIF next to the MP4.")
+    var gif = false
+
+    @Option(name: .customLong("gif-width"), help: "GIF width in pixels (0 = full size).")
+    var gifWidth: Int = 800
+
+    @Option(name: .customLong("gif-fps"), help: "GIF frame rate.")
+    var gifFPS: Double = 12
+
+    @Option(name: .long, help: "Video frame rate.")
+    var fps: Int = 30
+
+    @Option(name: .long, help: "Seconds to wait before recording.")
+    var delay: Double = 0
+
+    @Flag(name: .long, help: "Record system audio (MP4 only).")
+    var audio = false
+
+    @Flag(name: .long, help: "Record the microphone (macOS 15+, MP4 only).")
+    var mic = false
+
+    @Flag(name: .customLong("no-cursor"), help: "Hide the mouse pointer.")
+    var noCursor = false
+
+    @Flag(name: .shortAndLong, help: "Only print errors.")
+    var quiet = false
+
+    func validate() throws {
+        let modes = [fullscreen, rect != nil, windowID != nil, app != nil].filter { $0 }.count
+        if modes > 1 { throw ValidationError("Choose only one of --fullscreen, --rect, --window-id, --app.") }
+        if title != nil && app == nil { throw ValidationError("--title needs --app.") }
+        if let duration, duration <= 0 { throw ValidationError("--duration must be more than zero.") }
+        if let output, !["mp4", "mov", "gif"].contains((output as NSString).pathExtension.lowercased()) {
+            throw ValidationError("--output must end in .mp4 or .gif.")
+        }
+    }
+
+    func run() async throws {
+        var req = AgentOps.RecordRequest()
+        req.windowID = windowID
+        req.capture = Guide.CaptureSpec(app: app, title: title, rect: try rect.map { r in
+            let c = try parseRect(r); return [Double(c.minX), Double(c.minY), Double(c.width), Double(c.height)]
+        }, display: display)
+        req.duration = duration
+        req.during = runCommand
+        req.fps = fps
+        req.cursor = !noCursor
+        req.systemAudio = audio
+        req.microphone = mic
+        req.gifWidth = gifWidth
+        req.gifFPS = gifFPS
+
+        let out = output.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+            ?? CaptureNaming.defaultCaptureFolder().appendingPathComponent(CaptureNaming.timestampedName() + ".mp4")
+        if out.pathExtension.lowercased() == "gif" {
+            req.gif = out
+        } else {
+            req.mp4 = out
+            if gif { req.gif = out.deletingPathExtension().appendingPathExtension("gif") }
+        }
+
+        if delay > 0 {
+            if !quiet { printErr("Recording in \(delay)s…") }
+            try await Task.sleep(nanoseconds: UInt64(delay * 1e9))
+        }
+
+        // Stop on Ctrl-C or Return.
+        let stop = StopFlag()
+        signal(SIGINT, SIG_IGN)
+        let sigint = DispatchSource.makeSignalSource(signal: SIGINT, queue: .global())
+        sigint.setEventHandler { stop.set() }
+        sigint.resume()
+        if duration == nil && runCommand == nil && isatty(STDIN_FILENO) != 0 {
+            Thread.detachNewThread { _ = readLine(); stop.set() }
+        }
+        if !quiet {
+            printErr(duration.map { "Recording for \($0)s… (Ctrl-C to stop early)" }
+                     ?? (runCommand != nil ? "Recording until the command finishes…" : "Recording… press Return or Ctrl-C to stop."))
+        }
+
+        let result = try await AgentOps.record(req, stop: stop) { if !quiet { printErr($0) } }
+        sigint.cancel()
+        if let mp4 = result.mp4 { print(mp4.path) }
+        if let gif = result.gif { print(gif.path) }
     }
 }
