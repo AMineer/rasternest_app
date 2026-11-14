@@ -1,6 +1,7 @@
 import AVFoundation
 import AppKit
 import CoreMedia
+import RasterNestCapture
 import ScreenCaptureKit
 import SwiftUI
 
@@ -201,92 +202,6 @@ final class RecordingState: ObservableObject {
     @Published var elapsed: TimeInterval = 0
     var started: Date?
     func tick() { if let started { elapsed = Date().timeIntervalSince(started) } }
-}
-
-/// Writes ScreenCaptureKit buffers into an MP4. Runs on its own queue.
-final class RecordingWriter: NSObject, SCStreamOutput, @unchecked Sendable {
-    let queue = DispatchQueue(label: "app.rasternest.recording", qos: .userInitiated)
-    let url: URL
-    private let writer: AVAssetWriter
-    private let video: AVAssetWriterInput
-    private let systemAudio: AVAssetWriterInput?
-    private let microphone: AVAssetWriterInput?
-    private var started = false
-
-    init(url: URL, width: Int, height: Int, systemAudio: Bool, microphone: Bool) throws {
-        self.url = url
-        writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
-        let bitrate = max(4_000_000, min(width * height * 6, 40_000_000))
-        video = AVAssetWriterInput(mediaType: .video, outputSettings: [
-            AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: width,
-            AVVideoHeightKey: height,
-            AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: bitrate,
-                AVVideoExpectedSourceFrameRateKey: 30,
-                AVVideoMaxKeyFrameIntervalKey: 60,
-                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
-            ] as [String: Any],
-        ])
-        video.expectsMediaDataInRealTime = true
-        writer.add(video)
-
-        func audioInput() -> AVAssetWriterInput {
-            let input = AVAssetWriterInput(mediaType: .audio, outputSettings: [
-                AVFormatIDKey: kAudioFormatMPEG4AAC,
-                AVSampleRateKey: 48_000,
-                AVNumberOfChannelsKey: 2,
-                AVEncoderBitRateKey: 160_000,
-            ])
-            input.expectsMediaDataInRealTime = true
-            return input
-        }
-        self.systemAudio = systemAudio ? audioInput() : nil
-        self.microphone = microphone ? audioInput() : nil
-        if let a = self.systemAudio { writer.add(a) }
-        if let m = self.microphone { writer.add(m) }
-        super.init()
-    }
-
-    func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
-        guard sampleBuffer.isValid else { return }
-        switch type {
-        case .screen:
-            guard let attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, createIfNecessary: false) as? [[SCStreamFrameInfo: Any]],
-                  let raw = attachments.first?[.status] as? Int,
-                  SCFrameStatus(rawValue: raw) == .complete else { return }
-            if !started {
-                guard writer.startWriting() else { return }
-                writer.startSession(atSourceTime: sampleBuffer.presentationTimeStamp)
-                started = true
-            }
-            if video.isReadyForMoreMediaData { video.append(sampleBuffer) }
-        case .audio:
-            if started, let a = systemAudio, a.isReadyForMoreMediaData { a.append(sampleBuffer) }
-        default:
-            if #available(macOS 15.0, *), type == .microphone,
-               started, let m = microphone, m.isReadyForMoreMediaData { m.append(sampleBuffer) }
-        }
-    }
-
-    /// Finishes the file. Returns nil if nothing was recorded.
-    func finish() async -> URL? {
-        await withCheckedContinuation { (cont: CheckedContinuation<URL?, Never>) in
-            queue.async {
-                guard self.started, self.writer.status == .writing else {
-                    self.writer.cancelWriting()
-                    cont.resume(returning: nil)
-                    return
-                }
-                self.video.markAsFinished()
-                self.systemAudio?.markAsFinished()
-                self.microphone?.markAsFinished()
-                self.writer.finishWriting {
-                    cont.resume(returning: self.writer.status == .completed ? self.url : nil)
-                }
-            }
-        }
-    }
 }
 
 private struct RecordingControlView: View {

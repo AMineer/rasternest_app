@@ -46,6 +46,7 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ✅ Annotation specs (`rnest annotate`): anchor markup to on-screen text, pattern-based redaction
 - ✅ Guides (`rnest guide run`): rebuild every screenshot in a doc when the UI changes
 - ✅ MCP server (`rnest mcp`) for Claude and other agents
+- ✅ `rnest record` and the MCP `record` tool: window/area/screen to MP4 and GIF, timed or while a command runs
 - ⬜ Linux rendering for `annotate` PNG output and `guide run` (`annotate` to `.rasternest` works today)
 - ⬜ Guide steps that click or type (UI automation) before capturing
 

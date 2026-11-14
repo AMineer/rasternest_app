@@ -13,7 +13,7 @@ struct RNest: AsyncParsableCommand {
         commandName: "rnest",
         abstract: "RasterNest: capture, annotate and share screenshots from the command line.",
         version: RasterNestInfo.version,
-        subcommands: [Capture.self, OCR.self, Annotate.self, Export.self, GuideCommand.self, MCPCommand.self, Edit.self,
+        subcommands: [Capture.self, Record.self, OCR.self, Annotate.self, Export.self, GuideCommand.self, MCPCommand.self, Edit.self,
                       Displays.self, Windows.self, Backends.self],
         defaultSubcommand: Capture.self
     )
