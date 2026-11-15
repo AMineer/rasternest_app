@@ -7,10 +7,17 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     static let shared = SettingsWindowController()
 
     private init() {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView()))
+        let hosting = NSHostingController(rootView: SettingsView())
+        // The form scrolls; the window keeps whatever size it's given instead of growing to the
+        // form's full height (which ran off the bottom of smaller screens).
+        hosting.sizingOptions = []
+        let window = NSWindow(contentViewController: hosting)
         window.title = "RasterNest Settings"
-        window.styleMask = [.titled, .closable]
+        window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         window.isReleasedWhenClosed = false
+        window.contentMinSize = NSSize(width: 480, height: 320)
+        window.setContentSize(NSSize(width: 560, height: 720))
+        window.setFrameAutosaveName("RasterNestSettings")
         super.init(window: window)
         window.delegate = self
     }
@@ -19,7 +26,15 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     func show() {
         ActivationPolicy.becomeRegular()
-        window?.center()
+        if let window, let visible = (window.screen ?? NSScreen.main)?.visibleFrame {
+            // Never taller than the screen; keep a saved size otherwise.
+            var frame = window.frame
+            if frame.height > visible.height - 40 {
+                frame.size.height = visible.height - 40
+                window.setFrame(frame, display: false)
+            }
+            if !visible.contains(window.frame) { window.center() }
+        }
         showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -148,15 +163,16 @@ struct SettingsView: View {
             }
 
             Section("Command line") {
-                Text("Use `rnest capture`, `rnest ocr` and `rnest export` from Terminal. Installed with `brew install --cask amineer/tap/rasternest`.")
+                Text("`rnest` captures, records, annotates and combines from Terminal, and `rnest mcp` lets Claude and other AI agents use RasterNest. Homebrew installs it for you; with the DMG, use Install Command Line Tool below.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Install Command Line Tool…") { CLIInstaller.run() }
             }
         }
         .formStyle(.grouped)
         .tint(Brand.violetColor)
-        .frame(width: 520)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(minWidth: 480, idealWidth: 560, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             hasPermission = Permissions.hasScreenCapture
         }
