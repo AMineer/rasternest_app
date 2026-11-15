@@ -43,7 +43,8 @@
 **Markup**
 - Arrow (one or both ends), line, rectangle, ellipse, highlighter, text and callouts, numbered steps, pixelate or **blur** (redact), spotlight, **magnify lens**, pen, crop
 - **Right-click the image** to copy it, or copy the text in it (OCR)
-- **Combine**: drag captures into the Combine pane to put them side by side, stacked or in a grid (great for before/after)
+- **Image layers**: drag a capture from the strip (or any image from Finder, or ⌘V) onto the picture to place it on top. Move it, resize it from a corner, and add a border or shadow (picture-in-picture, before/after, logos)
+- **Combine**: drag captures into the Combine pane to put them side by side, stacked or in a grid. Each piece stays a layer you can resize or overlap afterwards
 - **Frames**: padding, gradient or solid background, rounded corners, drop shadow and border, with presets and a default for new captures
 - Single-key tool shortcuts (`A` arrow, `R` rect, `T` text, `N` step, `B` pixelate…), Shift to snap angles/squares
 - Per-tool styles (color, width, size, fill, shadow) that stick between captures

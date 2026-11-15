@@ -36,7 +36,7 @@ rnest combine step1.rasternest step2.rasternest --layout vertical --gap 32
 rnest combine *.png --layout grid --columns 3 --background none -o sheet.png
 ```
 
-Inputs can be images or `.rasternest` files; their annotations and frames are kept. `--no-match` keeps each image at its own size, and `--padding` adds space around the outside. The output can be `.png`, `.jpg`, or `.rasternest` (which stays editable in the app).
+Inputs can be images or `.rasternest` files; their annotations and frames are kept. `--no-match` keeps each image at its own size, and `--padding` adds space around the outside. The output can be `.png`, `.jpg`, or `.rasternest`. A `.rasternest` keeps each picture as its own layer, so you can still resize or overlap them in the app.
 
 ## OCR with positions
 
@@ -120,6 +120,7 @@ If the text isn't found, the command fails and lists the text it did see, so an 
 | `box` (`rectangle`), `ellipse`, `highlight` | `around`, `padding`, `filled`, `label` | Surrounds the anchor. |
 | `text` | `text`, `at`, `callout` | A filled callout below the anchor, or above it when it's near the bottom. |
 | `pixelate`, `blur`, `spotlight`, `magnify` | `around`, `zoom` | `blur` is a heavy Gaussian blur. |
+| `image` | `file` (PNG), `around` (fit inside), `at` (center), `zoom`, `width` (border) | Places a picture on the screenshot as a layer (picture-in-picture, logos). |
 | `redact` | `pattern`, `regex`, `match`, or `around`; `style` | Pixelates every match (`"style": "blur"` blurs instead). |
 
 Every type also accepts `color` (a name, or `#RRGGBB`), `width` (line width in points), `size` (font size in points) and `padding` (in points). Sizes in points scale with the image, so Retina captures look the same as standard ones.

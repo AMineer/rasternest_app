@@ -61,16 +61,18 @@ final class CombineModel: ObservableObject {
 
     var layout: CombineLayout { CombineLayout(arrangement: arrangement, gap: CGFloat(gap), matchSizes: matchSizes) }
 
-    /// Renders the combination and adds it to the library as a new capture.
+    /// Lays the images out on a blank canvas as separate image layers and adds that to the library,
+    /// so each piece can still be moved, resized or overlapped in the editor.
     func combine(into library: CaptureLibrary) -> CaptureLibrary.Item? {
         let images = entries.compactMap { Self.flattened($0.url) }
         guard images.count >= 2 else { return nil }
         let scale = images.map(\.1).max() ?? 1
         var layout = self.layout
         layout.gap = CGFloat(gap) * scale
-        guard let (image, outScale) = ImageCombiner.combine(images, layout: layout,
-                                                            background: transparent ? nil : RGBA(1, 1, 1)) else { return nil }
-        return try? library.addCapture(image: image, scale: outScale)
+        guard let result = ImageCombiner.layered(images, layout: layout, background: transparent ? nil : RGBA(1, 1, 1)) else {
+            return nil
+        }
+        return try? library.addCapture(image: result.canvas, scale: result.scale, annotations: result.layers)
     }
 }
 
@@ -221,6 +223,8 @@ struct CombinePane: View {
             }
             Toggle("Match sizes", isOn: $model.matchSizes).toggleStyle(.checkbox)
             Toggle("Transparent background", isOn: $model.transparent).toggleStyle(.checkbox)
+            Text("Each image stays a layer: after combining, drag a corner to resize it or drag it over another.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -231,7 +235,48 @@ struct CombinePane: View {
             HUD.show("Couldn't combine those images", symbol: "exclamationmark.triangle")
             return
         }
-        HUD.show("Combined \(model.entries.count) images", symbol: "square.on.square")
+        HUD.show("Combined \(model.entries.count) images. Drag a corner to resize one", symbol: "square.on.square")
         onCreated(item)
+    }
+}
+
+/// Pictures coming in from a drag or the clipboard, ready to become image layers.
+@MainActor
+enum IncomingImages {
+    struct Picture {
+        let png: Data
+        let pixelSize: CGSize
+        let scale: CGFloat
+    }
+
+    static func read(_ pasteboard: NSPasteboard) -> [Picture] {
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
+           !urls.isEmpty {
+            return urls.compactMap { url in
+                guard let (image, scale) = CombineModel.flattened(url) else { return nil }
+                return picture(image, scale: scale)
+            }
+        }
+        if let data = pasteboard.data(forType: .png), let (image, scale) = ImageCodec.decode(data) {
+            return [picture(image, scale: scale)].compactMap { $0 }
+        }
+        if let images = pasteboard.readObjects(forClasses: [NSImage.self]) as? [NSImage] {
+            return images.compactMap { ns in
+                guard let cg = ns.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+                let scale = ns.size.width > 0 ? CGFloat(cg.width) / ns.size.width : 1
+                return picture(cg, scale: max(1, scale))
+            }
+        }
+        return []
+    }
+
+    static func canRead(_ pasteboard: NSPasteboard) -> Bool {
+        pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+            || pasteboard.canReadObject(forClasses: [NSImage.self])
+    }
+
+    private static func picture(_ image: CGImage, scale: CGFloat) -> Picture? {
+        guard let png = ImageCodec.encode(image, format: .png, scale: scale) else { return nil }
+        return Picture(png: png, pixelSize: CGSize(width: image.width, height: image.height), scale: scale)
     }
 }

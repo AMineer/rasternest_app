@@ -5,11 +5,13 @@ import CoreGraphics
 
 public enum AnnotationKind: String, Codable, CaseIterable, Sendable {
     case arrow, line, rectangle, ellipse, highlight, text, step, pixelate, spotlight, pen, magnify
+    /// A picture placed on top of the capture (picture-in-picture, before/after, logos).
+    case image
 
     /// Kinds whose geometry is the rectangle spanned by `start` and `end`.
     public var isBoxed: Bool {
         switch self {
-        case .rectangle, .ellipse, .highlight, .pixelate, .spotlight, .text, .magnify: return true
+        case .rectangle, .ellipse, .highlight, .pixelate, .spotlight, .text, .magnify, .image: return true
         case .arrow, .line, .step, .pen: return false
         }
     }
@@ -68,10 +70,13 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
     /// Step number (step only).
     public var number: Int
     public var style: AnnotationStyle
+    /// The picture for `.image` layers (PNG). Absent for every other kind.
+    public var imagePNG: Data?
 
     public init(id: UUID = UUID(), kind: AnnotationKind, start: CGPoint, end: CGPoint? = nil,
                 points: [CGPoint] = [], text: String = "", number: Int = 0,
-                style: AnnotationStyle = .standard) {
+                style: AnnotationStyle = .standard, imagePNG: Data? = nil) {
+        self.imagePNG = imagePNG
         self.id = id
         self.kind = kind
         self.start = start
@@ -95,7 +100,7 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
         case .step:
             let r = stepRadius
             return CGRect(x: start.x - r, y: start.y - r, width: r * 2, height: r * 2)
-        case .arrow, .line, .rectangle, .ellipse, .magnify:
+        case .arrow, .line, .rectangle, .ellipse, .magnify, .image:
             return rect.insetBy(dx: -pad, dy: -pad)
         case .text, .highlight, .pixelate, .spotlight:
             return rect
@@ -136,7 +141,7 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
             let v = (dx * dx + dy * dy).squareRoot()
             if style.filled && v <= 1 { return true }
             return abs(v - 1) * min(rx, ry) <= tol
-        case .highlight, .pixelate, .spotlight, .text, .magnify:
+        case .highlight, .pixelate, .spotlight, .text, .magnify, .image:
             return rect.insetBy(dx: -tolerance, dy: -tolerance).contains(p)
         case .step:
             return Geometry.distance(p, start) <= stepRadius + tolerance
@@ -157,7 +162,7 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
         switch kind {
         case .arrow, .line:
             return [start, end]
-        case .rectangle, .ellipse, .highlight, .pixelate, .spotlight, .magnify:
+        case .rectangle, .ellipse, .highlight, .pixelate, .spotlight, .magnify, .image:
             return [start, end, CGPoint(x: start.x, y: end.y), CGPoint(x: end.x, y: start.y)]
         case .text, .step, .pen:
             return []
@@ -165,6 +170,10 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
     }
 
     public mutating func moveHandle(_ index: Int, to p: CGPoint) {
+        if kind == .image, let aspect = imageAspect, index <= 3 {
+            moveImageCorner(index, to: p, aspect: aspect)
+            return
+        }
         switch index {
         case 0: start = p
         case 1: end = p
@@ -172,6 +181,33 @@ public struct Annotation: Codable, Equatable, Identifiable, Sendable {
         case 3: end.x = p.x; start.y = p.y
         default: break
         }
+    }
+
+    /// Width ÷ height of an image layer's picture.
+    public var imageAspect: CGFloat? {
+        guard let data = imagePNG, let info = PNGInfo(data), info.height > 0 else { return nil }
+        return CGFloat(info.width) / CGFloat(info.height)
+    }
+
+    /// Image layers resize from a corner and keep their proportions; the opposite corner stays put.
+    private mutating func moveImageCorner(_ index: Int, to p: CGPoint, aspect: CGFloat) {
+        let corners = handles
+        let opposite = corners[[1, 0, 3, 2][index]]
+        var w = abs(p.x - opposite.x), h = abs(p.y - opposite.y)
+        // Follow whichever direction the pointer moved further, proportionally.
+        if w / max(h, 0.0001) > aspect { h = w / aspect } else { w = h * aspect }
+        w = max(w, 8); h = max(h, 8 / aspect)
+        let sx: CGFloat = p.x >= opposite.x ? 1 : -1, sy: CGFloat = p.y >= opposite.y ? 1 : -1
+        let moved = CGPoint(x: opposite.x + sx * w, y: opposite.y + sy * h)
+        start = CGPoint(x: min(opposite.x, moved.x), y: min(opposite.y, moved.y))
+        end = CGPoint(x: max(opposite.x, moved.x), y: max(opposite.y, moved.y))
+    }
+
+    /// An image layer of `png`, `size` big (pixels), centered on `center`.
+    public static func imageLayer(png: Data, center: CGPoint, size: CGSize, style: AnnotationStyle) -> Annotation {
+        let origin = CGPoint(x: center.x - size.width / 2, y: center.y - size.height / 2)
+        return Annotation(kind: .image, start: origin, end: CGPoint(x: origin.x + size.width, y: origin.y + size.height),
+                          style: style, imagePNG: png)
     }
 
     /// Next number for the step tool: one more than the highest existing step.

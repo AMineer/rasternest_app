@@ -236,6 +236,14 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     @objc func delete(_ sender: Any?) { model.deleteSelected() }
 
+    /// ⌘V with a picture on the clipboard places it on the capture as an image layer.
+    @objc func paste(_ sender: Any?) {
+        guard !showingVideo else { return }
+        let pictures = IncomingImages.read(.general)
+        guard !pictures.isEmpty else { NSSound.beep(); return }
+        for p in pictures { model.addImageLayer(png: p.png, pixelSize: p.pixelSize, scale: p.scale) }
+    }
+
     func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? { model.undoManager }
 
     // MARK: Save / export

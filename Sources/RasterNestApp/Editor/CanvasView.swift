@@ -31,6 +31,7 @@ final class CanvasView: NSView, NSTextFieldDelegate {
         self.model = model
         self.renderer = AnnotationRenderer(unit: model.pixelScale)
         super.init(frame: CGRect(origin: .zero, size: model.imageSize))
+        registerForDraggedTypes([.fileURL, .png, .tiff])
         model.objectWillChange
             .sink { [weak self] _ in self?.needsDisplay = true }
             .store(in: &cancellables)
@@ -158,6 +159,8 @@ final class CanvasView: NSView, NSTextFieldDelegate {
 
     private func startMove(_ a: Annotation, from p: CGPoint) {
         dragStartSnapshot = model.snapshot
+        // A picture you pick up goes on top, so it can be laid over another one.
+        if a.kind == .image { model.raiseSilently(a.id) }
         drag = .moving(a.id, origin: p, original: a)
     }
 
@@ -183,6 +186,7 @@ final class CanvasView: NSView, NSTextFieldDelegate {
 
         if let selected = model.selected, let i = handleIndex(at: p, of: selected) {
             dragStartSnapshot = model.snapshot
+            if selected.kind == .image { model.raiseSilently(selected.id) }
             drag = .handle(selected.id, index: i)
             return
         }
@@ -327,6 +331,29 @@ final class CanvasView: NSView, NSTextFieldDelegate {
                 HUD.show("Couldn't read text", symbol: "exclamationmark.triangle")
             }
         }
+    }
+
+    // MARK: Drop pictures on the capture
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        IncomingImages.canRead(sender.draggingPasteboard) ? .copy : []
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        IncomingImages.canRead(sender.draggingPasteboard) ? .copy : []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let pictures = IncomingImages.read(sender.draggingPasteboard)
+        guard !pictures.isEmpty else { return false }
+        var center = convert(sender.draggingLocation, from: nil)
+        for p in pictures {
+            model.addImageLayer(png: p.png, pixelSize: p.pixelSize, scale: p.scale, center: center)
+            center.x += 24 * model.pixelScale
+            center.y += 24 * model.pixelScale
+        }
+        window?.makeFirstResponder(self)
+        return true
     }
 
     // MARK: Keyboard

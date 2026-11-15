@@ -79,31 +79,34 @@ final class CaptureLibrary: ObservableObject {
 
     /// Stores a fresh capture and returns its item (newest first in the strip).
     @discardableResult
-    func addCapture(image: CGImage, scale: CGFloat, name: String = CaptureNaming.timestampedName()) throws -> Item {
+    func addCapture(image: CGImage, scale: CGFloat, annotations: [Annotation] = [],
+                    name: String = CaptureNaming.timestampedName()) throws -> Item {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let base = uniqueBase(name)
         let defaults = AppSettings.shared.defaultEffects(scale: scale)
-        guard let doc = ImageCodec.makeDocument(image: image, scale: scale, annotations: [],
+        guard let doc = ImageCodec.makeDocument(image: image, scale: scale, annotations: annotations,
                                                 effects: defaults.isEmpty ? nil : defaults) else {
             throw CocoaError(.fileWriteUnknown)
         }
         let docURL = base.appendingPathExtension(NestDocument.fileExtension)
         try doc.encoded().write(to: docURL, options: .atomic)
+        // What the capture looks like: the frame and any layers burned in.
+        var rendered = doc.imagePNG
+        if !defaults.isEmpty || !annotations.isEmpty,
+           let flat = AnnotationRenderer(unit: scale).flatten(image: image, annotations: annotations, effects: defaults),
+           let data = ImageCodec.encode(flat, format: .png, scale: scale) {
+            rendered = data
+        }
         var pngURL: URL?
         if AppSettings.shared.keepPNG {
             let url = base.appendingPathExtension("png")
-            if defaults.isEmpty {
-                try doc.imagePNG.write(to: url, options: .atomic)
-            } else if let framed = AnnotationRenderer(unit: scale).flatten(image: image, annotations: [], effects: defaults),
-                      let data = ImageCodec.encode(framed, format: .png, scale: scale) {
-                try data.write(to: url, options: .atomic)
-            }
+            try rendered.write(to: url, options: .atomic)
             pngURL = url
         }
         let item = Item(id: base.standardizedFileURL.path, name: base.lastPathComponent,
                         documentURL: docURL, imageURL: pngURL, date: Date())
         items.insert(item, at: externalItems.count)
-        thumbnails[item.id] = Self.thumbnail(data: doc.imagePNG)
+        thumbnails[item.id] = Self.thumbnail(data: rendered)
         return item
     }
 

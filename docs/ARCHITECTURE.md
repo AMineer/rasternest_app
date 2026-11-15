@@ -35,3 +35,9 @@ All annotation geometry is in **image pixels, origin top-left, y down**. Retina 
 - **Linux GUI / Windows:** reuse `RasterNestCore` (and the `.rasternest` format) as-is. Write a native shell (GTK/Qt on Linux, WinUI/Win32 on Windows), plus a renderer that matches `AnnotationRenderer`'s output.
 - **Windows capture:** add `WindowsScreenCapturer` (Windows.Graphics.Capture or BitBlt) behind `#if os(Windows)`, and wire it into `Capturers.make`.
 - **Linux `rnest export`:** needs a software rasterizer (e.g. Cairo through a system-library target). Until then it reports "unsupported".
+
+
+## `.rasternest` format versions
+
+- **1**: image, annotations, optional frame (`effects`).
+- **2**: adds `image` annotations (picture layers) with an embedded `imagePNG`. Files are only written as version 2 when they contain an image layer, so everything else still opens in older versions.

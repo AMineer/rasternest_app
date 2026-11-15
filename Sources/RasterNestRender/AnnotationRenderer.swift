@@ -1,5 +1,6 @@
 #if canImport(AppKit)
 import AppKit
+import ImageIO
 import CoreImage
 import RasterNestCore
 
@@ -242,6 +243,37 @@ public final class AnnotationRenderer {
         case .spotlight:
             break // drawn together in drawSpotlights
 
+        case .image:
+            guard let picture = layerImage(a) else { return }
+            let r = a.rect
+            let radius = min(a.style.lineWidth > 0 ? 6 * unit : 4 * unit, r.width / 4, r.height / 4)
+            let path = CGPath(roundedRect: r, cornerWidth: radius, cornerHeight: radius, transform: nil)
+            if a.style.shadow {
+                let k = deviceScale(ctx)
+                ctx.saveGState()
+                ctx.setShadow(offset: CGSize(width: 0, height: -6 * unit * k), blur: 18 * unit * k,
+                              color: CGColor(gray: 0, alpha: 0.4))
+                ctx.addPath(path)
+                ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+                ctx.fillPath()
+                ctx.restoreGState()
+            }
+            ctx.saveGState()
+            ctx.setAlpha(min(1, max(0.05, a.style.opacity)))
+            ctx.addPath(path)
+            ctx.clip()
+            ctx.interpolationQuality = .high
+            Self.drawImage(picture, in: r, ctx)
+            ctx.restoreGState()
+            if a.style.lineWidth > 0 {
+                ctx.addPath(CGPath(roundedRect: r.insetBy(dx: a.style.lineWidth / 2, dy: a.style.lineWidth / 2),
+                                   cornerWidth: max(0, radius - a.style.lineWidth / 2),
+                                   cornerHeight: max(0, radius - a.style.lineWidth / 2), transform: nil))
+                ctx.setStrokeColor(color)
+                ctx.setLineWidth(a.style.lineWidth)
+                ctx.strokePath()
+            }
+
         case .magnify:
             drawMagnifier(a, base: base, full: full, below: [], ctx: ctx)
 
@@ -387,6 +419,19 @@ public final class AnnotationRenderer {
               let result = Self.ciContext.createCGImage(output, from: input.extent) else { return nil }
         pixelateCache[key] = result
         return result
+    }
+
+    /// Decoded pictures for image layers, by annotation id (PNG data compared to catch replacements).
+    private var layerCache: [UUID: (Data, CGImage)] = [:]
+
+    private func layerImage(_ a: Annotation) -> CGImage? {
+        guard let data = a.imagePNG else { return nil }
+        if let (cachedData, image) = layerCache[a.id], cachedData == data { return image }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        if layerCache.count > 64 { layerCache.removeAll() }
+        layerCache[a.id] = (data, image)
+        return image
     }
 
     private func pixelated(_ base: CGImage, block: CGFloat) -> CGImage? {

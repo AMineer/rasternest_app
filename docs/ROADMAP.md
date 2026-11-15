@@ -40,7 +40,8 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ⬜ Library browser with tags and search
 - ⬜ Share targets (upload to S3, Imgur, Slack, custom webhook)
 - ✅ PDF export (single capture, multi-capture guides, `rnest export --format pdf`)
-- ✅ Combine captures side by side, stacked or in a grid (Combine pane, `rnest combine`)
+- ✅ Combine captures side by side, stacked or in a grid (Combine pane, `rnest combine`), as editable layers
+- ✅ Image layers: drop or paste a picture onto a capture, move/resize/overlap it
 - ✅ Right-click to copy the image or its text
 
 ## Agents & automation
