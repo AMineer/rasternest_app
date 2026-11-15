@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import RasterNestCapture
 import RasterNestCore
 import RasterNestRender
 
@@ -289,16 +290,43 @@ final class CanvasView: NSView, NSTextFieldDelegate {
         }
     }
 
+    /// Right-click / two-finger click: copy the image (or its text) anywhere on the canvas;
+    /// on an annotation, also the annotation's own actions.
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard let h = hit(point(event)) else { return nil }
-        model.selectedID = h.id
         let menu = NSMenu()
+        menu.addItem(ActionMenuItem("Copy Image") { [weak self] in self?.copyImage() })
+        menu.addItem(ActionMenuItem("Copy Text") { [weak self] in self?.copyText() })
+        guard let h = hit(point(event)) else { return menu }
+        model.selectedID = h.id
+        menu.addItem(.separator())
         menu.addItem(ActionMenuItem("Duplicate") { [weak self] in self?.model.duplicateSelected() })
         menu.addItem(ActionMenuItem("Bring to Front") { [weak self] in self?.model.bringSelectedToFront() })
         menu.addItem(ActionMenuItem("Send to Back") { [weak self] in self?.model.sendSelectedToBack() })
         menu.addItem(.separator())
         menu.addItem(ActionMenuItem("Delete") { [weak self] in self?.model.deleteSelected() })
         return menu
+    }
+
+    /// Same as Edit › Copy: the flattened image, annotations and frame included.
+    private func copyImage() {
+        NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: self)
+    }
+
+    /// Recognizes the text in the original capture and copies it.
+    private func copyText() {
+        let image = model.image
+        Task { @MainActor in
+            do {
+                let text = try await TextRecognition.recognize(cgImage: image)
+                guard !text.isEmpty else { HUD.show("No text found", symbol: "text.viewfinder"); return }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                let lines = text.split(separator: "\n").count
+                HUD.show("Copied \(lines) line\(lines == 1 ? "" : "s") of text", symbol: "text.viewfinder")
+            } catch {
+                HUD.show("Couldn't read text", symbol: "exclamationmark.triangle")
+            }
+        }
     }
 
     // MARK: Keyboard
