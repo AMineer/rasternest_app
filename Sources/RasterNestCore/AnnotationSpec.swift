@@ -87,6 +87,8 @@ public struct AnnotationSpec: Codable, Equatable, Sendable {
         public var heads: Int?
         /// Redaction: "blur" or "pixelate" (default).
         public var style: String?
+        /// `image`: a PNG file to place (path relative to the working directory).
+        public var file: String?
 
         public init(type: String, at: Anchor? = nil, around: Anchor? = nil, from: Anchor? = nil, to: Anchor? = nil,
                     text: String? = nil, label: String? = nil, number: Int? = nil, pattern: String? = nil,
@@ -115,7 +117,7 @@ public struct AnnotationSpec: Codable, Equatable, Sendable {
         public var errorDescription: String? {
             switch self {
             case .unknownType(let t):
-                return "Unknown annotation type `\(t)`. Use step, arrow, line, box, ellipse, highlight, text, pixelate, blur, redact, spotlight or magnify."
+                return "Unknown annotation type `\(t)`. Use step, arrow, line, box, ellipse, highlight, text, pixelate, blur, redact, spotlight, magnify or image."
             case .missingAnchor(let t, let f): return "`\(t)` needs `\(f)`."
             case .textNotFound(let t, let seen):
                 let sample = seen.prefix(25).map { "\"\($0)\"" }.joined(separator: ", ")
@@ -253,6 +255,31 @@ public struct AnnotationSpec: Codable, Equatable, Sendable {
                 if a.text == nil && a.rect == nil { ann.start = target.center; ann.end = ann.start }
                 ann.style.filled = item.callout ?? true
                 out.append(ann)
+
+            case "image", "picture":
+                guard let path = item.file else { throw ResolveError.missingAnchor(type: type, field: "file") }
+                let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+                guard let data = try? Data(contentsOf: url), let info = PNGInfo(data) else {
+                    throw ResolveError.badAnchor("`image` needs a PNG file; couldn't read \(path).")
+                }
+                // Native size at this image's density, optionally scaled by `zoom`; or fit to an `around` rect.
+                let k = CGFloat(item.zoom ?? 1) * s / CGFloat(max(info.scale, 1))
+                var frame = CGRect(x: 0, y: 0, width: CGFloat(info.width) * k, height: CGFloat(info.height) * k)
+                if let a = item.around, a.rect != nil || a.text != nil {
+                    let target = try box(a, pad: 0)
+                    let f = min(target.width / frame.width, target.height / frame.height)
+                    frame.size = CGSize(width: frame.width * f, height: frame.height * f)
+                    frame.origin = CGPoint(x: target.midX - frame.width / 2, y: target.midY - frame.height / 2)
+                } else if let a = item.at ?? item.around {
+                    let c = try box(a, pad: 0).center
+                    frame.origin = CGPoint(x: c.x - frame.width / 2, y: c.y - frame.height / 2)
+                } else {
+                    frame.origin = CGPoint(x: (size.width - frame.width) / 2, y: (size.height - frame.height) / 2)
+                }
+                let style = AnnotationStyle(color: color, lineWidth: CGFloat(item.width ?? 0) * s,
+                                            shadow: item.filled ?? true, opacity: 1)
+                out.append(Annotation(kind: .image, start: frame.origin, end: CGPoint(x: frame.maxX, y: frame.maxY),
+                                      style: style, imagePNG: data))
 
             case "redact":
                 var boxes: [PixelBox] = []

@@ -397,7 +397,7 @@ enum MCPTools {
             MCPTool(
                 name: "annotate",
                 description: """
-                Add markup to an image and save it. Each annotation: {"type": step|arrow|line|box|ellipse|highlight|text|pixelate|blur|redact|spotlight|magnify, …}. \
+                Add markup to an image and save it. Each annotation: {"type": step|arrow|line|box|ellipse|highlight|text|pixelate|blur|redact|spotlight|magnify|image, …}. \
                 step: {"at": anchor, "label"?}. arrow/line: {"to": anchor, "from"?: anchor, "label"?}. box/ellipse/highlight/pixelate/spotlight/magnify: {"around": anchor}. \
                 text: {"text": "…", "at": anchor}. redact: {"pattern": email|phone|ipv4|url|card|token} or {"regex": "…"} or {"match": "literal"} or {"around": anchor}. \
                 Optional on any: color (name or #RRGGBB), width, size, padding. Anchors: {"text": "Save"} is best. \
@@ -417,6 +417,7 @@ enum MCPTools {
                                 "padding": ["type": "number"], "zoom": ["type": "number"],
                                 "heads": ["type": "integer", "description": "Arrows: 2 for heads at both ends."],
                                 "style": ["type": "string", "description": "pixelate/redact: \"blur\" for a Gaussian blur."],
+                                "file": ["type": "string", "description": "image: a PNG to place (picture-in-picture); use around (fit) or at (center), zoom to scale."],
                             ],
                             "required": ["type"],
                         ]],
@@ -764,16 +765,18 @@ extension AgentOps {
                                    columns: columns, matchSizes: matchSizes)
         let bg: RGBA? = ["none", "transparent", "clear"].contains(background.lowercased())
             ? nil : try AnnotationSpec.parseColor(background)
-        guard let (image, outScale) = ImageCombiner.combine(images, layout: layout, background: bg) else {
-            throw CaptureFailure.backendFailed("Combining failed.")
-        }
         try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
         if output.pathExtension.lowercased() == NestDocument.fileExtension {
-            guard let doc = ImageCodec.makeDocument(image: image, scale: outScale, annotations: []) else {
-                throw CaptureFailure.backendFailed("Encoding failed.")
+            // Editable: each picture is its own layer in the document.
+            guard let r = ImageCombiner.layered(images, layout: layout, background: bg),
+                  let doc = ImageCodec.makeDocument(image: r.canvas, scale: r.scale, annotations: r.layers) else {
+                throw CaptureFailure.backendFailed("Combining failed.")
             }
             try doc.encoded().write(to: output, options: .atomic)
         } else {
+            guard let (image, outScale) = ImageCombiner.combine(images, layout: layout, background: bg) else {
+                throw CaptureFailure.backendFailed("Combining failed.")
+            }
             let fmt = ExportFormat(fileExtension: output.pathExtension.isEmpty ? "png" : output.pathExtension) ?? .png
             guard let data = ImageCodec.encode(image, format: fmt, scale: outScale) else {
                 throw CaptureFailure.backendFailed("Encoding failed.")

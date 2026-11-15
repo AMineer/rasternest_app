@@ -184,6 +184,14 @@ private struct InspectorBar: View {
             slider("Rim", \.lineWidth, 0 * s...12 * s)
             toggle("Square", \.filled)
             toggle("Shadow", \.shadow)
+        case .image:
+            Text("Image").foregroundStyle(.secondary)
+            slider("Border", \.lineWidth, 0...16 * s)
+            ColorSwatches(model: model)
+            slider("Opacity", \.opacity, 0.2...1)
+            toggle("Shadow", \.shadow)
+            Button("Bring to Front") { model.bringSelectedToFront() }
+                .controlSize(.small)
         case .highlight:
             ColorSwatches(model: model)
             slider("Opacity", \.opacity, 0.15...0.8)

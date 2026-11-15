@@ -205,3 +205,43 @@ final class CombineAndStyleTests: XCTestCase {
         XCTAssertFalse(back.style.isBlur)
     }
 }
+
+final class ImageLayerTests: XCTestCase {
+    // 1×1 PNG at 144 dpi (from testPNGInfoReadsSizeAndDensity), plus a 2×1 one at 72 dpi.
+    let onePixel = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAABYlAAAWJQFJUiTwAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==")!
+    let twoByOne = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR4nGP4z8DwnwGIGWAMAG3QB/k9OwOAAAAAAElFTkSuQmCC")!
+
+    func testCornerDragKeepsAspectRatio() throws {
+        XCTAssertEqual(PNGInfo(twoByOne)?.width, 2)
+        var layer = Annotation.imageLayer(png: twoByOne, center: CGPoint(x: 100, y: 100),
+                                          size: CGSize(width: 100, height: 50), style: .standard)
+        XCTAssertEqual(layer.rect, CGRect(x: 50, y: 75, width: 100, height: 50))
+        // Drag the bottom-right corner (handle 1) far right but barely down: height follows width.
+        layer.moveHandle(1, to: CGPoint(x: 250, y: 80))
+        XCTAssertEqual(layer.rect.minX, 50)
+        XCTAssertEqual(layer.rect.minY, 75)
+        XCTAssertEqual(layer.rect.width / layer.rect.height, 2, accuracy: 0.001)
+        XCTAssertEqual(layer.rect.width, 200, accuracy: 0.001)
+    }
+
+    func testDocumentVersionOnlyBumpsWithImageLayers() throws {
+        var doc = NestDocument(imagePNG: onePixel, pixelScale: 1, annotations: [])
+        var decoded = try NestDocument.decoded(from: doc.encoded())
+        XCTAssertEqual(decoded.formatVersion, 1)
+        doc.annotations.append(.imageLayer(png: onePixel, center: .zero, size: CGSize(width: 4, height: 4), style: .standard))
+        decoded = try NestDocument.decoded(from: doc.encoded())
+        XCTAssertEqual(decoded.formatVersion, 2)
+        XCTAssertEqual(decoded.annotations.first?.imagePNG, onePixel)
+    }
+
+    func testSpecPlacesImageFittedToRect() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("rn-layer-\(UUID().uuidString).png")
+        try twoByOne.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let json = #"{"annotations":[{"type":"image","file":"\#(url.path)","around":{"rect":[0,0,40,40]}}]}"#
+        let spec = try JSONDecoder().decode(AnnotationSpec.self, from: Data(json.utf8))
+        let anns = try spec.resolve(imageSize: CGSize(width: 100, height: 100), scale: 1, lines: [])
+        XCTAssertEqual(anns.first?.kind, .image)
+        XCTAssertEqual(anns.first?.rect, CGRect(x: 0, y: 10, width: 40, height: 20))
+    }
+}

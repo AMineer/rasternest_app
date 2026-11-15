@@ -192,6 +192,27 @@ final class EditorModel: ObservableObject {
     /// Adds without an undo step (callers register one when the gesture ends).
     func insert(_ a: Annotation) { annotations.append(a) }
 
+    /// Places a picture on the capture as a movable, resizable layer (with undo) and selects it.
+    /// `scale` is the picture's pixels per point, so a Retina capture dropped on another keeps its size.
+    @discardableResult
+    func addImageLayer(png: Data, pixelSize: CGSize, scale: CGFloat, center: CGPoint? = nil) -> Annotation {
+        let pre = snapshot
+        var size = CGSize(width: pixelSize.width * pixelScale / max(scale, 1), height: pixelSize.height * pixelScale / max(scale, 1))
+        // Start no bigger than 60% of the capture; corner handles resize it from there.
+        let fit = min(1, imageSize.width * 0.6 / size.width, imageSize.height * 0.6 / size.height)
+        size = CGSize(width: (size.width * fit).rounded(), height: (size.height * fit).rounded())
+        var c = center ?? CGPoint(x: imageSize.width / 2, y: imageSize.height / 2)
+        c.x = min(max(c.x, size.width / 2), imageSize.width - size.width / 2)
+        c.y = min(max(c.y, size.height / 2), imageSize.height - size.height / 2)
+        let style = AnnotationStyle(color: .white, lineWidth: 0, shadow: true, opacity: 1)
+        let layer = Annotation.imageLayer(png: png, center: c, size: size, style: style)
+        insert(layer)
+        selectedID = layer.id
+        tool = .select
+        registerUndo(from: pre)
+        return layer
+    }
+
     func removeSilently(_ id: UUID) {
         annotations.removeAll { $0.id == id }
         if selectedID == id { selectedID = nil }
@@ -202,7 +223,23 @@ final class EditorModel: ObservableObject {
         var a = annotations[i]
         body(&a)
         if a.kind == .text { TextMetrics.layout(&a) }
+        if a.kind == .image { a = Self.keepInside(a, CGRect(origin: .zero, size: imageSize)) }
         annotations[i] = a
+    }
+
+    /// Image layers stay on the capture: shrunk to fit if needed, then slid back inside.
+    static func keepInside(_ layer: Annotation, _ bounds: CGRect) -> Annotation {
+        var a = layer
+        var r = a.rect
+        if r.width > bounds.width || r.height > bounds.height {
+            let f = min(bounds.width / r.width, bounds.height / r.height)
+            r.size = CGSize(width: r.width * f, height: r.height * f)
+        }
+        r.origin.x = min(max(r.minX, bounds.minX), bounds.maxX - r.width)
+        r.origin.y = min(max(r.minY, bounds.minY), bounds.maxY - r.height)
+        a.start = r.origin
+        a.end = CGPoint(x: r.maxX, y: r.maxY)
+        return a
     }
 
     func deleteSelected() {
@@ -219,6 +256,13 @@ final class EditorModel: ObservableObject {
         if copy.kind == .step { copy.number = nextStepNumber }
         annotations.append(copy)
         selectedID = copy.id
+    }
+
+    /// Moves an annotation to the top without its own undo step (the drag that caused it records one).
+    func raiseSilently(_ id: UUID) {
+        guard let i = annotations.firstIndex(where: { $0.id == id }), i != annotations.count - 1 else { return }
+        let a = annotations.remove(at: i)
+        annotations.append(a)
     }
 
     func bringSelectedToFront() {

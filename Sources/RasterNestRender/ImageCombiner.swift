@@ -47,5 +47,38 @@ public enum ImageCombiner {
         guard let out = ctx.makeImage() else { return nil }
         return (out, scale)
     }
+
+    /// The same layout as `combine`, but as a blank canvas with each picture as a separate image layer,
+    /// so pieces can still be moved, resized or overlapped afterwards.
+    public static func layered(_ images: [(CGImage, CGFloat)], layout: CombineLayout,
+                               background: RGBA? = RGBA(1, 1, 1)) -> (canvas: CGImage, layers: [Annotation], scale: CGFloat)? {
+        guard !images.isEmpty else { return nil }
+        let scale = images.map(\.1).max() ?? 1
+        let sizes = images.map { img, s in
+            CGSize(width: CGFloat(img.width) * scale / max(s, 1), height: CGFloat(img.height) * scale / max(s, 1))
+        }
+        var placed = layout.place(sizes)
+        let longest = max(placed.canvas.width, placed.canvas.height)
+        if longest > maxSide {
+            let f = maxSide / longest
+            placed.canvas = CGSize(width: (placed.canvas.width * f).rounded(), height: (placed.canvas.height * f).rounded())
+            placed.frames = placed.frames.map { CGRect(x: $0.minX * f, y: $0.minY * f, width: $0.width * f, height: $0.height * f).integral }
+        }
+        let w = max(1, Int(placed.canvas.width)), h = max(1, Int(placed.canvas.height))
+        guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        if let background {
+            ctx.setFillColor(background.cgColor)
+            ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+        }
+        guard let canvas = ctx.makeImage() else { return nil }
+        let layers: [Annotation] = zip(images, placed.frames).compactMap { pair, frame in
+            guard let png = ImageCodec.encode(pair.0, format: .png, scale: pair.1) else { return nil }
+            return Annotation(kind: .image, start: frame.origin, end: CGPoint(x: frame.maxX, y: frame.maxY),
+                              style: AnnotationStyle(color: .white, lineWidth: 0, shadow: false, opacity: 1), imagePNG: png)
+        }
+        return (canvas, layers, scale)
+    }
 }
 #endif
