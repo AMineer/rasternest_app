@@ -23,7 +23,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .highlight: return "Highlighter"
         case .text: return "Text"
         case .step: return "Step"
-        case .pixelate: return "Pixelate"
+        case .pixelate: return "Pixelate or Blur"
         case .spotlight: return "Spotlight"
         case .magnify: return "Magnify"
         case .pen: return "Pen"

@@ -178,20 +178,28 @@ public final class AnnotationRenderer {
         case .arrow:
             applyShadow(ctx, a)
             ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-            let head = Geometry.arrowHead(start: a.start, end: a.end, lineWidth: a.style.lineWidth)
+            let double = a.style.isDoubleHeaded
+            // With two heads, each may use at most half the shaft.
+            let mid = CGPoint(x: (a.start.x + a.end.x) / 2, y: (a.start.y + a.end.y) / 2)
+            let head = double
+                ? Geometry.arrowHead(start: mid, end: a.end, lineWidth: a.style.lineWidth)
+                : Geometry.arrowHead(start: a.start, end: a.end, lineWidth: a.style.lineWidth)
+            let tail = double ? Geometry.arrowHead(start: mid, end: a.start, lineWidth: a.style.lineWidth) : nil
             ctx.setStrokeColor(color)
             ctx.setFillColor(color)
             ctx.setLineWidth(a.style.lineWidth)
             ctx.setLineCap(.round)
-            ctx.move(to: a.start)
+            ctx.move(to: tail?.base ?? a.start)
             ctx.addLine(to: head.base)
             ctx.strokePath()
             ctx.setLineJoin(.round)
-            ctx.move(to: head.tip)
-            ctx.addLine(to: head.left)
-            ctx.addLine(to: head.right)
-            ctx.closePath()
-            ctx.drawPath(using: .fillStroke)
+            for h in [head, tail].compactMap({ $0 }) {
+                ctx.move(to: h.tip)
+                ctx.addLine(to: h.left)
+                ctx.addLine(to: h.right)
+                ctx.closePath()
+                ctx.drawPath(using: .fillStroke)
+            }
             ctx.endTransparencyLayer()
 
         case .line:
@@ -226,7 +234,8 @@ public final class AnnotationRenderer {
             ctx.fill(a.rect)
 
         case .pixelate:
-            guard let pixelated = pixelated(base, block: a.style.lineWidth) else { return }
+            let hidden = a.style.isBlur ? blurred(base, radius: a.style.lineWidth) : pixelated(base, block: a.style.lineWidth)
+            guard let pixelated = hidden else { return }
             ctx.clip(to: a.rect)
             Self.drawImage(pixelated, in: full, ctx)
 
@@ -358,6 +367,26 @@ public final class AnnotationRenderer {
         }
         ctx.endTransparencyLayer()
         ctx.restoreGState()
+    }
+
+    /// A heavy Gaussian blur. The radius is generous (block size × 1.6, at least 12 px) so text
+    /// underneath can't be read back.
+    private func blurred(_ base: CGImage, radius block: CGFloat) -> CGImage? {
+        if cacheSource !== base {
+            pixelateCache.removeAll()
+            cacheSource = base
+        }
+        let radius = max(12, block * 1.6)
+        let key = -Int(radius.rounded()) // negative keys: blur, positive: pixelate
+        if let cached = pixelateCache[key] { return cached }
+        let input = CIImage(cgImage: base)
+        guard let filter = CIFilter(name: "CIGaussianBlur") else { return nil }
+        filter.setValue(input.clampedToExtent(), forKey: kCIInputImageKey)
+        filter.setValue(radius, forKey: kCIInputRadiusKey)
+        guard let output = filter.outputImage?.cropped(to: input.extent),
+              let result = Self.ciContext.createCGImage(output, from: input.extent) else { return nil }
+        pixelateCache[key] = result
+        return result
     }
 
     private func pixelated(_ base: CGImage, block: CGFloat) -> CGImage? {

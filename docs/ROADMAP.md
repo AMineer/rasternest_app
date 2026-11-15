@@ -16,16 +16,16 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ✅ Screen recording to MP4 with system audio + microphone (macOS 15), trim, GIF export
 - ✅ Keystroke display while recording (shortcuts only by default)
 - ⬜ Pause/resume and webcam overlay while recording
-- ⬜ Capture the cursor (optional)
+- ✅ Capture the cursor (optional)
 - ⬜ Capture presets / profiles
-- ⬜ Color picker (hex from the magnifier)
+- ✅ Color picker (press C for the hex under the magnifier)
 
 ## Markup
 - ✅ Arrow, line, rectangle, ellipse, highlighter, text, callout, step numbers, pixelate, spotlight, pen, crop
 - ✅ Per-tool styles, palette + custom colors, shadows, fills
 - ✅ Undo/redo, nudge, duplicate, z-order
-- ⬜ Arrow styles (curved, double-headed, tapered)
-- ⬜ Blur (gaussian) in addition to pixelate
+- 🟡 Arrow styles: double-headed ✅; curved and tapered planned
+- ✅ Blur (gaussian) in addition to pixelate
 - ✅ Magnify/loupe annotation (magnifies redactions, never the hidden pixels)
 - ⬜ Stamps and emoji
 - ✅ Frames: padding, background, rounded corners, shadow, border, default for new captures
@@ -40,6 +40,8 @@ Feature checklist against a typical commercial capture tool. ✅ done · 🟡 pa
 - ⬜ Library browser with tags and search
 - ⬜ Share targets (upload to S3, Imgur, Slack, custom webhook)
 - ✅ PDF export (single capture, multi-capture guides, `rnest export --format pdf`)
+- ✅ Combine captures side by side, stacked or in a grid (Combine pane, `rnest combine`)
+- ✅ Right-click to copy the image or its text
 
 ## Agents & automation
 - ✅ `rnest ocr --json` / `--find`: text with pixel boxes

@@ -12,10 +12,19 @@ struct EditorRootView: View {
     let window: () -> NSWindow?
     let onSelect: (CaptureLibrary.Item) -> Void
     let onTrash: (CaptureLibrary.Item) -> Void
+    var commit: () -> Void = {}
+    @StateObject private var combine = CombineModel()
+    @State private var showCombine = false
 
     var body: some View {
         HStack(spacing: 0) {
-            CaptureStrip(library: library, selectedID: session.item?.id, onSelect: onSelect, onTrash: onTrash)
+            CaptureStrip(library: library, selectedID: session.item?.id, onSelect: onSelect, onTrash: onTrash,
+                         showCombine: $showCombine,
+                         onAddToCombine: { item in
+                             commit()
+                             combine.add(item.shareURL)
+                             showCombine = true
+                         })
             Divider()
             if session.item?.isVideo == true {
                 VideoPane(model: video, window: window)
@@ -23,8 +32,30 @@ struct EditorRootView: View {
                 EditorView(model: session.model, scrollView: scrollView, actions: actions)
                     .id(ObjectIdentifier(session.model))
             }
+            if showCombine {
+                Divider()
+                CombinePane(model: combine, library: library, currentItem: session.item, commit: commit,
+                            onCreated: onSelect, onClose: { showCombine = false })
+                    .transition(.move(edge: .trailing))
+            }
         }
+        .animation(.easeOut(duration: 0.18), value: showCombine)
+        .onChange(of: showCombine) { _, open in resizeWindow(by: open ? Self.combineWidth : -Self.combineWidth) }
         .tint(Brand.violetColor)
+    }
+
+    private static let combineWidth: CGFloat = 251
+
+    /// Grows the window for the Combine pane (staying on screen) and shrinks it back on close.
+    private func resizeWindow(by dx: CGFloat) {
+        guard let window = window() else { return }
+        var frame = window.frame
+        frame.size.width += dx
+        if let visible = window.screen?.visibleFrame {
+            if frame.width > visible.width { frame.size.width = visible.width }
+            if frame.maxX > visible.maxX { frame.origin.x = max(visible.minX, visible.maxX - frame.width) }
+        }
+        window.setFrame(frame, display: true, animate: true)
     }
 }
 
@@ -34,18 +65,27 @@ struct CaptureStrip: View {
     let selectedID: String?
     let onSelect: (CaptureLibrary.Item) -> Void
     let onTrash: (CaptureLibrary.Item) -> Void
+    @Binding var showCombine: Bool
+    var onAddToCombine: (CaptureLibrary.Item) -> Void = { _ in }
     @State private var showPDF = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 Text("Captures")
                     .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .fixedSize()
                 Text("\(library.items.count)")
                     .font(.system(size: 11, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
-                Spacer()
+                    .lineLimit(1)
+                    .fixedSize()
+                Spacer(minLength: 2)
+                Button { showCombine.toggle() } label: { Image(systemName: "square.on.square") }
+                    .buttonStyle(.borderless)
+                    .help("Combine captures into one image")
                 Button { showPDF = true } label: { Image(systemName: "doc.richtext") }
                     .buttonStyle(.borderless)
                     .help("Combine captures into a PDF")
@@ -60,7 +100,7 @@ struct CaptureStrip: View {
                 .help("Show the captures folder in Finder")
             }
             .tint(.primary)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .frame(height: 44)
 
             Divider()
@@ -101,6 +141,9 @@ struct CaptureStrip: View {
     private func menu(for item: CaptureLibrary.Item) -> some View {
         Button("Edit") { onSelect(item) }
         Button("Copy Image") { copy(item) }
+        if !item.isVideo {
+            Button("Add to Combine") { onAddToCombine(item) }
+        }
         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([item.shareURL]) }
         Divider()
         Button(item.isExternal ? "Remove from List" : "Move to Trash", role: .destructive) { onTrash(item) }

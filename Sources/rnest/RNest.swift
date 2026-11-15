@@ -13,7 +13,7 @@ struct RNest: AsyncParsableCommand {
         commandName: "rnest",
         abstract: "RasterNest: capture, annotate and share screenshots from the command line.",
         version: RasterNestInfo.version,
-        subcommands: [Capture.self, Record.self, OCR.self, Annotate.self, Export.self, GuideCommand.self, MCPCommand.self, Edit.self,
+        subcommands: [Capture.self, Record.self, OCR.self, Annotate.self, Combine.self, Export.self, GuideCommand.self, MCPCommand.self, Edit.self,
                       Displays.self, Windows.self, Backends.self],
         defaultSubcommand: Capture.self
     )
@@ -69,6 +69,9 @@ struct Capture: AsyncParsableCommand {
     @Flag(name: [.customShort("e"), .long], help: "Open the capture in the RasterNest editor (macOS).")
     var edit = false
 
+    @Flag(name: .long, help: "Include the mouse pointer (macOS).")
+    var cursor = false
+
     @Option(name: .long, help: "Force a capture backend (Linux: grim, gnome-screenshot, spectacle, maim, scrot, import).")
     var backend: String?
 
@@ -97,6 +100,9 @@ struct Capture: AsyncParsableCommand {
         }
 
         let capturer = try Capturers.make(backend: backend)
+        #if canImport(RasterNestRender)
+        if cursor, let mac = capturer as? MacScreenCapturer { mac.showsCursor = true }
+        #endif
         let result = try await capturer.capture(target)
 
         if text {

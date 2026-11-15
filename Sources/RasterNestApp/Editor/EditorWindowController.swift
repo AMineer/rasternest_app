@@ -84,7 +84,8 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
             session: session, library: CaptureLibrary.shared, video: video, scrollView: scrollView, actions: actions,
             window: { [weak window] in window },
             onSelect: { [weak self] item in self?.open(item) },
-            onTrash: { [weak self] item in self?.trash(item) }
+            onTrash: { [weak self] item in self?.trash(item) },
+            commit: { [weak self] in self?.commitCurrent() }
         )
         let host = NSHostingView(rootView: root)
         host.sizingOptions = []

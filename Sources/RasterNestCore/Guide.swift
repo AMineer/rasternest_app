@@ -73,11 +73,13 @@ public struct Guide: Codable, Equatable, Sendable {
         public var rect: [Double]?
         public var fullscreen: Bool?
         public var display: Int?
+        /// Include the mouse pointer (macOS).
+        public var cursor: Bool?
 
         public init(file: String? = nil, window: String? = nil, app: String? = nil, title: String? = nil,
-                    rect: [Double]? = nil, fullscreen: Bool? = nil, display: Int? = nil) {
+                    rect: [Double]? = nil, fullscreen: Bool? = nil, display: Int? = nil, cursor: Bool? = nil) {
             self.file = file; self.window = window; self.app = app; self.title = title
-            self.rect = rect; self.fullscreen = fullscreen; self.display = display
+            self.rect = rect; self.fullscreen = fullscreen; self.display = display; self.cursor = cursor
         }
     }
 

@@ -28,6 +28,16 @@ rnest record --fullscreen                                    # until Return or C
 
 The video only gets new frames when the screen changes, but it still runs for the full recording time, so pauses come out the right length.
 
+## Combining images
+
+```sh
+rnest combine before.png after.png -o compare.png                 # side by side, heights matched
+rnest combine step1.rasternest step2.rasternest --layout vertical --gap 32
+rnest combine *.png --layout grid --columns 3 --background none -o sheet.png
+```
+
+Inputs can be images or `.rasternest` files; their annotations and frames are kept. `--no-match` keeps each image at its own size, and `--padding` adds space around the outside. The output can be `.png`, `.jpg`, or `.rasternest` (which stays editable in the app).
+
 ## OCR with positions
 
 ```sh
@@ -60,6 +70,7 @@ rnest annotate shot.png --step "Save" --step "Allow" --box "Advanced" --arrow "A
   --highlight "Beta" --redact email --redact "Jane Doe" --frame docs -o step.png
 ```
 
+- `--blur` blurs redactions instead of pixelating them.
 - `--redact` accepts a pattern name (`email`, `phone`, `ipv4`, `url`, `card`, `token`). Anything else is treated as literal text to hide.
 - Output is `<input>-annotated.png` unless you pass `-o`. Use `-o file.rasternest` to keep the result editable in the app. `-e` opens the result in the editor.
 
@@ -105,11 +116,11 @@ If the text isn't found, the command fails and lists the text it did see, so an 
 | Type | Fields | Placement |
 |---|---|---|
 | `step` | `at`, `number`, `label` | Numbered circle to the left of the anchor (right if there's no room). Numbers continue from existing steps. |
-| `arrow`, `line` | `to`, `from`, `label` | Without `from`, the arrow starts diagonally from the side facing the middle of the image. It ends on the target's edge. |
+| `arrow`, `line` | `to`, `from`, `label`, `heads` | Without `from`, the arrow starts diagonally from the side facing the middle of the image. It ends on the target's edge. `"heads": 2` puts a head on both ends. |
 | `box` (`rectangle`), `ellipse`, `highlight` | `around`, `padding`, `filled`, `label` | Surrounds the anchor. |
 | `text` | `text`, `at`, `callout` | A filled callout below the anchor, or above it when it's near the bottom. |
-| `pixelate`, `spotlight`, `magnify` | `around`, `zoom` | |
-| `redact` | `pattern`, `regex`, `match`, or `around` | Pixelates every match. |
+| `pixelate`, `blur`, `spotlight`, `magnify` | `around`, `zoom` | `blur` is a heavy Gaussian blur. |
+| `redact` | `pattern`, `regex`, `match`, or `around`; `style` | Pixelates every match (`"style": "blur"` blurs instead). |
 
 Every type also accepts `color` (a name, or `#RRGGBB`), `width` (line width in points), `size` (font size in points) and `padding` (in points). Sizes in points scale with the image, so Retina captures look the same as standard ones.
 
@@ -201,6 +212,7 @@ Use the full path that `which rnest` prints. If you installed from the DMG, choo
 | `capture` | Captures a window by `app`/`title`, a `window_id`, a `rect`, a whole display, or lets the user pick (`interactive`). Returns the path, the size and a preview image. |
 | `ocr` | Text with boxes for an image. `find` returns just one piece of text. |
 | `annotate` | Applies a list of spec annotations. Saves a PNG and an editable `.rasternest`, and returns a preview. |
+| `combine` | Puts several images side by side, stacked, or in a grid, and returns the path and a preview. |
 | `export` | Flattens to PNG/JPEG, combines captures into a PDF, or converts an MP4 to GIF. |
 | `run_guide` | Builds or rebuilds a guide file. |
 | `list_windows`, `list_displays` | What's on screen. |
@@ -219,6 +231,7 @@ Captures from the MCP server go to `~/Pictures/RasterNest/agent/` unless the age
 | | macOS | Linux |
 |---|---|---|
 | `record` | ✓ | not yet |
+| `combine` | ✓ | not yet |
 | `ocr --json` | Vision | tesseract |
 | `annotate` → `.rasternest` | ✓ | ✓ |
 | `annotate` → `.png`/`.jpg` | ✓ | not yet |

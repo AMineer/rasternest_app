@@ -161,3 +161,47 @@ final class AgentToolsTests: XCTestCase {
         XCTAssertEqual(parse["error"]?["code"]?.int, -32700)
     }
 }
+
+final class CombineAndStyleTests: XCTestCase {
+    func testSideBySideMatchesHeights() {
+        let r = CombineLayout(arrangement: .horizontal, gap: 10).place([CGSize(width: 100, height: 50), CGSize(width: 40, height: 100)])
+        XCTAssertEqual(r.frames[0], CGRect(x: 0, y: 0, width: 200, height: 100))
+        XCTAssertEqual(r.frames[1], CGRect(x: 210, y: 0, width: 40, height: 100))
+        XCTAssertEqual(r.canvas, CGSize(width: 250, height: 100))
+    }
+
+    func testStackedWithoutMatchingCentersImages() {
+        let r = CombineLayout(arrangement: .vertical, gap: 0, padding: 5, matchSizes: false)
+            .place([CGSize(width: 100, height: 20), CGSize(width: 50, height: 30)])
+        XCTAssertEqual(r.canvas, CGSize(width: 110, height: 60))
+        XCTAssertEqual(r.frames[1], CGRect(x: 30, y: 25, width: 50, height: 30))
+    }
+
+    func testGridPicksNearSquareColumns() {
+        let sizes = Array(repeating: CGSize(width: 10, height: 10), count: 5)
+        let r = CombineLayout(arrangement: .grid, gap: 2).place(sizes)
+        XCTAssertEqual(r.canvas, CGSize(width: 3 * 10 + 2 * 2, height: 2 * 10 + 2))
+        XCTAssertEqual(r.frames[3].origin, CGPoint(x: 0, y: 12))
+    }
+
+    func testSpecBlurAndDoubleArrow() throws {
+        let spec = AnnotationSpec(annotations: [
+            .init(type: "blur", around: .init(rect: [0, 0, 10, 10])),
+            .init(type: "redact", around: .init(rect: [0, 0, 5, 5]), style: "blur"),
+            .init(type: "arrow", from: .init(x: 0, y: 0), to: .init(x: 50, y: 50), heads: 2),
+        ])
+        let anns = try spec.resolve(imageSize: CGSize(width: 100, height: 100), scale: 1, lines: [])
+        XCTAssertTrue(anns[0].style.isBlur)
+        XCTAssertTrue(anns[1].style.isBlur)
+        XCTAssertTrue(anns[2].style.isDoubleHeaded)
+    }
+
+    func testOlderFilesWithoutNewStyleFieldsStillDecode() throws {
+        let a = Annotation(kind: .pixelate, start: .zero, end: CGPoint(x: 5, y: 5))
+        var json = String(decoding: try JSONEncoder().encode(a), as: UTF8.self)
+        XCTAssertFalse(json.contains("blur")) // nil fields aren't written
+        json = json.replacingOccurrences(of: "\"zoom\":null,", with: "")
+        let back = try JSONDecoder().decode(Annotation.self, from: Data(json.utf8))
+        XCTAssertFalse(back.style.isBlur)
+    }
+}

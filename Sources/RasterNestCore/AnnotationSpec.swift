@@ -83,11 +83,17 @@ public struct AnnotationSpec: Codable, Equatable, Sendable {
         public var callout: Bool?
         /// Shapes: translucent fill.
         public var filled: Bool?
+        /// Arrows: 2 for a head at both ends.
+        public var heads: Int?
+        /// Redaction: "blur" or "pixelate" (default).
+        public var style: String?
 
         public init(type: String, at: Anchor? = nil, around: Anchor? = nil, from: Anchor? = nil, to: Anchor? = nil,
                     text: String? = nil, label: String? = nil, number: Int? = nil, pattern: String? = nil,
                     regex: String? = nil, match: String? = nil, color: String? = nil, padding: Double? = nil,
-                    width: Double? = nil, size: Double? = nil, zoom: Double? = nil, callout: Bool? = nil, filled: Bool? = nil) {
+                    width: Double? = nil, size: Double? = nil, zoom: Double? = nil, callout: Bool? = nil, filled: Bool? = nil,
+                    heads: Int? = nil, style: String? = nil) {
+            self.heads = heads; self.style = style
             self.type = type; self.at = at; self.around = around; self.from = from; self.to = to
             self.text = text; self.label = label; self.number = number; self.pattern = pattern
             self.regex = regex; self.match = match; self.color = color; self.padding = padding
@@ -109,7 +115,7 @@ public struct AnnotationSpec: Codable, Equatable, Sendable {
         public var errorDescription: String? {
             switch self {
             case .unknownType(let t):
-                return "Unknown annotation type `\(t)`. Use step, arrow, line, box, ellipse, highlight, text, pixelate, redact, spotlight or magnify."
+                return "Unknown annotation type `\(t)`. Use step, arrow, line, box, ellipse, highlight, text, pixelate, blur, redact, spotlight or magnify."
             case .missingAnchor(let t, let f): return "`\(t)` needs `\(f)`."
             case .textNotFound(let t, let seen):
                 let sample = seen.prefix(25).map { "\"\($0)\"" }.joined(separator: ", ")
@@ -200,7 +206,7 @@ public struct AnnotationSpec: Codable, Equatable, Sendable {
                     start = Self.arrowStart(toward: target, in: bounds, length: 110 * s)
                 }
                 let end = (toA.text != nil || toA.rect != nil) ? Self.edgePoint(of: target, from: start) : target.center
-                let style = AnnotationStyle(color: color, lineWidth: CGFloat(item.width ?? 4) * s)
+                let style = AnnotationStyle(color: color, lineWidth: CGFloat(item.width ?? 4) * s, heads: item.heads)
                 out.append(Annotation(kind: type == "arrow" ? .arrow : .line, start: start, end: end, style: style))
                 if let label = item.label ?? item.text {
                     out.append(makeLabel(label, near: CGRect(origin: start, size: .zero), color: color, size: item.size, s: s, bounds: bounds))
@@ -221,7 +227,8 @@ public struct AnnotationSpec: Codable, Equatable, Sendable {
                     style = AnnotationStyle(color: color, lineWidth: 0, shadow: false, opacity: 0.45)
                 case "pixelate", "blur":
                     kind = .pixelate
-                    style = AnnotationStyle(color: .black, lineWidth: CGFloat(item.width ?? 10) * s, shadow: false)
+                    style = AnnotationStyle(color: .black, lineWidth: CGFloat(item.width ?? 10) * s, shadow: false,
+                                            blur: (type == "blur" || item.style?.lowercased() == "blur") ? true : nil)
                 case "spotlight":
                     kind = .spotlight
                     style = AnnotationStyle(color: .black, lineWidth: 0, shadow: false, opacity: 0.55)
@@ -262,7 +269,8 @@ public struct AnnotationSpec: Codable, Equatable, Sendable {
                 if item.pattern == nil && item.regex == nil && item.match == nil && item.around == nil && item.at == nil {
                     throw ResolveError.missingAnchor(type: type, field: "pattern, regex, match or around")
                 }
-                let style = AnnotationStyle(color: .black, lineWidth: CGFloat(item.width ?? 10) * s, shadow: false)
+                let style = AnnotationStyle(color: .black, lineWidth: CGFloat(item.width ?? 10) * s, shadow: false,
+                                            blur: item.style?.lowercased() == "blur" ? true : nil)
                 for b in boxes {
                     let r = b.rect.insetBy(dx: -3 * s, dy: -3 * s).intersection(bounds)
                     guard !r.isNull, r.width > 0 else { continue }
