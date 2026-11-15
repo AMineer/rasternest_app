@@ -20,6 +20,7 @@ final class CombineModel: ObservableObject {
     @Published var gap: Double = 24
     @Published var matchSizes = true
     @Published var transparent = false
+    @Published var numbered = true
     @Published var busy = false
 
     func add(_ url: URL) {
@@ -69,7 +70,8 @@ final class CombineModel: ObservableObject {
         let scale = images.map(\.1).max() ?? 1
         var layout = self.layout
         layout.gap = CGFloat(gap) * scale
-        guard let result = ImageCombiner.layered(images, layout: layout, background: transparent ? nil : RGBA(1, 1, 1)) else {
+        guard let result = ImageCombiner.layered(images, layout: layout, background: transparent ? nil : RGBA(1, 1, 1),
+                                                 numbered: numbered) else {
             return nil
         }
         return try? library.addCapture(image: result.canvas, scale: result.scale, annotations: result.layers)
@@ -222,8 +224,9 @@ struct CombinePane: View {
                 Text("\(Int(model.gap)) pt").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width: 38)
             }
             Toggle("Match sizes", isOn: $model.matchSizes).toggleStyle(.checkbox)
+            Toggle("Number each image", isOn: $model.numbered).toggleStyle(.checkbox)
             Toggle("Transparent background", isOn: $model.transparent).toggleStyle(.checkbox)
-            Text("Each image stays a layer: after combining, drag a corner to resize it or drag it over another.")
+            Text("Each image stays a layer: after combining, drag a corner to resize it, drag it past the edge to make the page bigger, or lay it over another.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }

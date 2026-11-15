@@ -236,6 +236,11 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
 
     @objc func delete(_ sender: Any?) { model.deleteSelected() }
 
+    @objc func fitCanvas(_ sender: Any?) {
+        guard !showingVideo else { return }
+        model.fitCanvasToContent()
+    }
+
     /// ⌘V with a picture on the clipboard places it on the capture as an image layer.
     @objc func paste(_ sender: Any?) {
         guard !showingVideo else { return }

@@ -265,6 +265,18 @@ public final class AnnotationRenderer {
             ctx.interpolationQuality = .high
             Self.drawImage(picture, in: r, ctx)
             ctx.restoreGState()
+            defer {
+                if a.number > 0 {
+                    // A step badge in the picture's top-left corner that travels with it.
+                    let radius = max(12 * unit, min(26 * unit, min(r.width, r.height) * 0.09))
+                    let inset = radius + 6 * unit
+                    var badge = Annotation(kind: .step, start: CGPoint(x: r.minX + inset, y: r.minY + inset), number: a.number,
+                                           style: AnnotationStyle(color: a.style.color == .white ? .red : a.style.color,
+                                                                  fontSize: radius / 0.85, shadow: true))
+                    badge.id = a.id
+                    drawStep(badge, ctx)
+                }
+            }
             if a.style.lineWidth > 0 {
                 ctx.addPath(CGPath(roundedRect: r.insetBy(dx: a.style.lineWidth / 2, dy: a.style.lineWidth / 2),
                                    cornerWidth: max(0, radius - a.style.lineWidth / 2),

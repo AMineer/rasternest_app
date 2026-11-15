@@ -223,7 +223,6 @@ final class EditorModel: ObservableObject {
         var a = annotations[i]
         body(&a)
         if a.kind == .text { TextMetrics.layout(&a) }
-        if a.kind == .image { a = Self.keepInside(a, CGRect(origin: .zero, size: imageSize)) }
         annotations[i] = a
     }
 
@@ -297,6 +296,113 @@ final class EditorModel: ObservableObject {
         for i in annotations.indices { annotations[i].translate(dx: -rect.minX, dy: -rect.minY) }
         cropRect = nil
         tool = .select
+    }
+
+    /// Sets (or clears, with 0) the step number on the selected picture layer.
+    func setSelectedNumber(_ n: Int) {
+        guard let sel = selected, sel.kind == .image else { return }
+        checkpoint(coalesce: "number-\(sel.id)")
+        update(sel.id) { $0.number = max(0, n) }
+    }
+
+    // MARK: Canvas size
+
+    /// Re-frames the canvas to `rect` (image coordinates): bigger adds blank space, smaller trims.
+    /// Annotations keep their place on screen. No undo step of its own; callers record one.
+    func setCanvasSilently(_ rect: CGRect) {
+        let r = rect.integral
+        guard r.width >= 8, r.height >= 8, r.width <= 16_384, r.height <= 16_384, r != imageBounds,
+              let ctx = CGContext(data: nil, width: Int(r.width), height: Int(r.height), bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+        if let fill = Self.backgroundColor(of: image) {
+            ctx.setFillColor(fill)
+            ctx.fill(CGRect(x: 0, y: 0, width: r.width, height: r.height))
+        }
+        // CoreGraphics is bottom-up; place the old picture at its offset from the new top-left.
+        ctx.draw(image, in: CGRect(x: -r.minX, y: r.maxY - imageSize.height, width: imageSize.width, height: imageSize.height))
+        guard let next = ctx.makeImage() else { return }
+        image = next
+        for i in annotations.indices { annotations[i].translate(dx: -r.minX, dy: -r.minY) }
+    }
+
+    /// Grows the canvas (with a margin) so the layer is fully on it. Returns true if it grew.
+    @discardableResult
+    func growCanvas(toInclude id: UUID) -> Bool {
+        guard let a = annotation(id) else { return false }
+        let bounds = imageBounds
+        guard !bounds.contains(a.rect) else { return false }
+        let margin = 24 * pixelScale
+        var target = bounds
+        if a.rect.minX < bounds.minX { target.origin.x = a.rect.minX - margin; target.size.width += bounds.minX - target.minX }
+        if a.rect.minY < bounds.minY { target.origin.y = a.rect.minY - margin; target.size.height += bounds.minY - target.minY }
+        if a.rect.maxX > target.maxX { target.size.width = a.rect.maxX + margin - target.minX }
+        if a.rect.maxY > target.maxY { target.size.height = a.rect.maxY + margin - target.minY }
+        setCanvasSilently(target)
+        return true
+    }
+
+    /// Trims (or grows) the canvas to the picture's content and every annotation, plus a margin.
+    func fitCanvasToContent() {
+        var content = Self.contentBounds(of: image) ?? .null
+        for a in annotations where a.kind != .spotlight { content = content.union(a.bounds) }
+        guard !content.isNull, content.width > 0 else { return }
+        let margin = 24 * pixelScale
+        let pre = snapshot
+        setCanvasSilently(content.insetBy(dx: -margin, dy: -margin))
+        if pre.image !== image { registerUndo(from: pre) }
+    }
+
+    /// The color to extend the canvas with: the picture's top-left pixel (nil when it's transparent).
+    static func backgroundColor(of image: CGImage) -> CGColor? {
+        guard let px = Self.pixels(image, maxSide: nil), px.width > 0 else { return CGColor(gray: 1, alpha: 1) }
+        let a = px.data[3]
+        guard a > 8 else { return nil }
+        return CGColor(srgbRed: CGFloat(px.data[0]) / CGFloat(a), green: CGFloat(px.data[1]) / CGFloat(a),
+                       blue: CGFloat(px.data[2]) / CGFloat(a), alpha: CGFloat(a) / 255)
+    }
+
+    /// Bounding box of pixels that differ from the top-left (background) pixel, in image coordinates.
+    static func contentBounds(of image: CGImage) -> CGRect? {
+        // Scan a reduced copy; precision of a few pixels is plenty for a margin of 24 pt.
+        guard let px = Self.pixels(image, maxSide: 1200) else { return nil }
+        let bg = Array(px.data[0..<4])
+        var minX = px.width, minY = px.height, maxX = -1, maxY = -1
+        for y in 0..<px.height {
+            for x in 0..<px.width {
+                let o = (y * px.width + x) * 4
+                if abs(Int(px.data[o]) - Int(bg[0])) + abs(Int(px.data[o + 1]) - Int(bg[1]))
+                    + abs(Int(px.data[o + 2]) - Int(bg[2])) + abs(Int(px.data[o + 3]) - Int(bg[3])) > 24 {
+                    minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+                }
+            }
+        }
+        guard maxX >= 0 else { return nil }
+        let k = CGFloat(image.width) / CGFloat(px.width)
+        return CGRect(x: CGFloat(minX) * k, y: CGFloat(minY) * k,
+                      width: CGFloat(maxX - minX + 1) * k, height: CGFloat(maxY - minY + 1) * k).integral
+    }
+
+    /// RGBA bytes (premultiplied, top row first), optionally downscaled.
+    private static func pixels(_ image: CGImage, maxSide: Int?) -> (data: [UInt8], width: Int, height: Int)? {
+        var w = image.width, h = image.height
+        if let maxSide, max(w, h) > maxSide {
+            let f = Double(maxSide) / Double(max(w, h))
+            w = max(1, Int(Double(w) * f)); h = max(1, Int(Double(h) * f))
+        }
+        if maxSide == nil { w = 1; h = 1 } // just the top-left pixel
+        var data = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &data, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        if maxSide == nil {
+            // Draw so the image's top-left pixel lands in our 1×1 bitmap.
+            ctx.draw(image, in: CGRect(x: 0, y: 1 - CGFloat(image.height), width: CGFloat(image.width), height: CGFloat(image.height)))
+        } else {
+            ctx.interpolationQuality = .low
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        }
+        return (data, w, h)
     }
 
     // MARK: Inspector

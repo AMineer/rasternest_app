@@ -221,6 +221,14 @@ final class CaptureLibrary: ObservableObject {
         }
         guard let data = try? Data(contentsOf: documentURL),
               let doc = try? NestDocument.decoded(from: data) else { return nil }
+        // No PNG beside it: render, so frames and picture layers show (a combined page's base is blank).
+        if !doc.annotations.isEmpty || doc.effects != nil,
+           let (base, _) = ImageCodec.decode(doc.imagePNG),
+           let flat = AnnotationRenderer(unit: doc.pixelScale)
+            .flatten(image: base, annotations: doc.annotations, effects: doc.effects ?? .none),
+           let png = ImageCodec.encode(flat, format: .png, scale: doc.pixelScale) {
+            return thumbnail(data: png)
+        }
         return thumbnail(data: doc.imagePNG)
     }
 

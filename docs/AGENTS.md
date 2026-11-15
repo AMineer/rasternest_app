@@ -36,7 +36,7 @@ rnest combine step1.rasternest step2.rasternest --layout vertical --gap 32
 rnest combine *.png --layout grid --columns 3 --background none -o sheet.png
 ```
 
-Inputs can be images or `.rasternest` files; their annotations and frames are kept. `--no-match` keeps each image at its own size, and `--padding` adds space around the outside. The output can be `.png`, `.jpg`, or `.rasternest`. A `.rasternest` keeps each picture as its own layer, so you can still resize or overlap them in the app.
+Inputs can be images or `.rasternest` files; their annotations and frames are kept. `--numbers` puts a step badge (1, 2, 3…) on each image, which turns a sequence of dialogs into a one-page numbered walkthrough. `--no-match` keeps each image at its own size, and `--padding` adds space around the outside. The output can be `.png`, `.jpg`, or `.rasternest`. A `.rasternest` keeps each picture as its own layer, so you can still resize or overlap them in the app.
 
 ## OCR with positions
 
@@ -213,7 +213,7 @@ Use the full path that `which rnest` prints. If you installed from the DMG, choo
 | `capture` | Captures a window by `app`/`title`, a `window_id`, a `rect`, a whole display, or lets the user pick (`interactive`). Returns the path, the size and a preview image. |
 | `ocr` | Text with boxes for an image. `find` returns just one piece of text. |
 | `annotate` | Applies a list of spec annotations. Saves a PNG and an editable `.rasternest`, and returns a preview. |
-| `combine` | Puts several images side by side, stacked, or in a grid, and returns the path and a preview. |
+| `combine` | Puts several images side by side, stacked, or in a grid (`numbers: true` for step badges), and returns the path and a preview. |
 | `export` | Flattens to PNG/JPEG, combines captures into a PDF, or converts an MP4 to GIF. |
 | `run_guide` | Builds or rebuilds a guide file. |
 | `list_windows`, `list_displays` | What's on screen. |
