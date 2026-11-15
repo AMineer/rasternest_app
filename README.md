@@ -44,7 +44,7 @@
 - Arrow (one or both ends), line, rectangle, ellipse, highlighter, text and callouts, numbered steps, pixelate or **blur** (redact), spotlight, **magnify lens**, pen, crop
 - **Right-click the image** to copy it, or copy the text in it (OCR)
 - **Image layers**: drag a capture from the strip (or any image from Finder, or ⌘V) onto the picture to place it on top. Move it, resize it from a corner, and add a border or shadow (picture-in-picture, before/after, logos)
-- **Combine**: drag captures into the Combine pane to put them side by side, stacked or in a grid. Each piece stays a layer you can resize or overlap afterwards
+- **Combine**: drag captures into the Combine pane to put them side by side, stacked or in a grid, optionally numbered 1, 2, 3. Each piece stays a layer: resize it, overlap it, or drag it past the edge and the page grows. **Fit Canvas** trims the page to its content. Ideal for turning an installer's 7 dialogs into one numbered step-by-step page
 - **Frames**: padding, gradient or solid background, rounded corners, drop shadow and border, with presets and a default for new captures
 - Single-key tool shortcuts (`A` arrow, `R` rect, `T` text, `N` step, `B` pixelate…), Shift to snap angles/squares
 - Per-tool styles (color, width, size, fill, shadow) that stick between captures
@@ -64,6 +64,7 @@ rnest ocr screenshot.png
 rnest record --app Safari --duration 8 -o demo.gif   # record a window straight to GIF
 rnest record --rect 0,120,900,600 --gif              # area → MP4 + GIF (Return to stop)
 rnest combine before.png after.png -o compare.png  # side by side (--layout vertical|grid)
+rnest combine install-*.png --layout grid --numbers --padding 32 -o install-steps.png
 rnest export demo.mp4 --format gif --width 640   # recording → GIF
 rnest export step1.rasternest step2.rasternest --format pdf --page-size letter --captions -o guide.pdf
 rnest export notes.rasternest --format png

@@ -285,8 +285,12 @@ final class CanvasView: NSView, NSTextFieldDelegate {
             }
             model.selectedID = id
             if let pre = dragStartSnapshot { model.registerUndo(from: pre) }
-        case .moving, .handle:
-            if let pre = dragStartSnapshot, pre.annotations != model.annotations { model.registerUndo(from: pre) }
+        case .moving(let id, _, _), .handle(let id, _):
+            // A picture dragged past the edge makes the page bigger instead of being cut off.
+            if model.annotation(id)?.kind == .image { model.growCanvas(toInclude: id) }
+            if let pre = dragStartSnapshot, pre.annotations != model.annotations || pre.image !== model.image {
+                model.registerUndo(from: pre)
+            }
         case .cropping:
             if let r = model.cropRect, r.width < 4 || r.height < 4 { model.cropRect = nil }
         case .none:
@@ -300,6 +304,9 @@ final class CanvasView: NSView, NSTextFieldDelegate {
         let menu = NSMenu()
         menu.addItem(ActionMenuItem("Copy Image") { [weak self] in self?.copyImage() })
         menu.addItem(ActionMenuItem("Copy Text") { [weak self] in self?.copyText() })
+        if model.annotations.contains(where: { $0.kind == .image }) {
+            menu.addItem(ActionMenuItem("Fit Canvas to Content") { [weak self] in self?.model.fitCanvasToContent() })
+        }
         guard let h = hit(point(event)) else { return menu }
         model.selectedID = h.id
         menu.addItem(.separator())

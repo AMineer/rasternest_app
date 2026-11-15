@@ -190,8 +190,15 @@ private struct InspectorBar: View {
             ColorSwatches(model: model)
             slider("Opacity", \.opacity, 0.2...1)
             toggle("Shadow", \.shadow)
-            Button("Bring to Front") { model.bringSelectedToFront() }
+            Stepper(value: Binding(get: { model.selected?.number ?? 0 },
+                                   set: { n in model.setSelectedNumber(n) }), in: 0...99) {
+                Text((model.selected?.number ?? 0) == 0 ? "No Number" : "Step \(model.selected?.number ?? 0)")
+                    .foregroundStyle(.secondary).monospacedDigit()
+            }
+            .help("Put a step number badge on this picture")
+            Button("Fit Canvas") { model.fitCanvasToContent() }
                 .controlSize(.small)
+                .help("Trim or grow the page to fit everything on it")
         case .highlight:
             ColorSwatches(model: model)
             slider("Opacity", \.opacity, 0.15...0.8)

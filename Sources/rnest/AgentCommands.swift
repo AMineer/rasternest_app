@@ -487,6 +487,7 @@ enum MCPTools {
                         "columns": ["type": "integer", "description": "Grid columns."],
                         "match_sizes": ["type": "boolean", "description": "Match heights/widths (default true)."],
                         "background": ["type": "string", "description": "white (default), none, a color name or #RRGGBB."],
+                        "numbers": ["type": "boolean", "description": "Step number badge on each image (good for install/setup sequences)."],
                         "output": ["type": "string", "description": ".png, .jpg or .rasternest. Default: ~/Pictures/RasterNest/agent/<timestamp>.png"],
                     ],
                     "required": ["inputs"],
@@ -499,7 +500,8 @@ enum MCPTools {
                     let url = try AgentOps.combine(inputs, arrangement: string(args, "layout") ?? "horizontal",
                                                    gap: args["gap"]?.double ?? 24, padding: args["padding"]?.double ?? 0,
                                                    columns: args["columns"]?.int, matchSizes: args["match_sizes"]?.bool ?? true,
-                                                   background: string(args, "background") ?? "white", output: out)
+                                                   background: string(args, "background") ?? "white",
+                                                   numbered: args["numbers"]?.bool ?? false, output: out)
                     let doc = try AgentOps.loadDocument(url)
                     return describe(url, doc: doc, includeImage: true)
                 }
@@ -698,6 +700,7 @@ struct Combine: AsyncParsableCommand {
           rnest combine before.png after.png -o compare.png
           rnest combine step1.rasternest step2.rasternest step3.rasternest --layout vertical --gap 32
           rnest combine *.png --layout grid --columns 3 --background none -o sheet.png
+          rnest combine install-*.png --layout grid --numbers --padding 32 -o install-steps.png
         """
     )
 
@@ -722,6 +725,9 @@ struct Combine: AsyncParsableCommand {
     @Option(name: .long, help: "Background: white, none (transparent), a color name or #RRGGBB.")
     var background: String = "white"
 
+    @Flag(name: .long, help: "Put a step number badge on each image (1, 2, 3…).")
+    var numbers = false
+
     @Option(name: .shortAndLong, help: "Output .png, .jpg or .rasternest. Default: combined.png next to the first input.")
     var output: String?
 
@@ -741,7 +747,7 @@ struct Combine: AsyncParsableCommand {
             ?? first.deletingLastPathComponent().appendingPathComponent("combined.png")
         let url = try AgentOps.combine(inputs.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) },
                                        arrangement: layout, gap: gap, padding: padding, columns: columns,
-                                       matchSizes: !noMatch, background: background, output: out)
+                                       matchSizes: !noMatch, background: background, numbered: numbers, output: out)
         #if canImport(RasterNestRender)
         if clipboard, let (image, scale) = ImageCodec.load(url), let png = ImageCodec.encode(image, format: .png, scale: scale) {
             try Clipboard.copyPNG(png)
@@ -754,7 +760,7 @@ struct Combine: AsyncParsableCommand {
 extension AgentOps {
     /// Combines files into one image (or editable document) at `output`.
     static func combine(_ inputs: [URL], arrangement: String, gap: Double, padding: Double, columns: Int?,
-                        matchSizes: Bool, background: String, output: URL) throws -> URL {
+                        matchSizes: Bool, background: String, numbered: Bool = false, output: URL) throws -> URL {
         #if canImport(RasterNestRender)
         guard let arr = CombineLayout.Arrangement(rawValue: arrangement.lowercased()) else {
             throw ValidationError("Layout must be horizontal, vertical or grid.")
@@ -768,13 +774,13 @@ extension AgentOps {
         try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
         if output.pathExtension.lowercased() == NestDocument.fileExtension {
             // Editable: each picture is its own layer in the document.
-            guard let r = ImageCombiner.layered(images, layout: layout, background: bg),
+            guard let r = ImageCombiner.layered(images, layout: layout, background: bg, numbered: numbered),
                   let doc = ImageCodec.makeDocument(image: r.canvas, scale: r.scale, annotations: r.layers) else {
                 throw CaptureFailure.backendFailed("Combining failed.")
             }
             try doc.encoded().write(to: output, options: .atomic)
         } else {
-            guard let (image, outScale) = ImageCombiner.combine(images, layout: layout, background: bg) else {
+            guard let (image, outScale) = ImageCombiner.combine(images, layout: layout, background: bg, numbered: numbered) else {
                 throw CaptureFailure.backendFailed("Combining failed.")
             }
             let fmt = ExportFormat(fileExtension: output.pathExtension.isEmpty ? "png" : output.pathExtension) ?? .png

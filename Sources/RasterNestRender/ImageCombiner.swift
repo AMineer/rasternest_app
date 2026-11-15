@@ -13,8 +13,13 @@ public enum ImageCombiner {
     ///   - background: nil for transparent.
     /// - Returns: the combined image and its pixels-per-point scale.
     public static func combine(_ images: [(CGImage, CGFloat)], layout: CombineLayout,
-                               background: RGBA? = RGBA(1, 1, 1)) -> (CGImage, CGFloat)? {
+                               background: RGBA? = RGBA(1, 1, 1), numbered: Bool = false) -> (CGImage, CGFloat)? {
         guard !images.isEmpty else { return nil }
+        if numbered {
+            guard let r = layered(images, layout: layout, background: background, numbered: true),
+                  let flat = AnnotationRenderer(unit: r.scale).flatten(image: r.canvas, annotations: r.layers) else { return nil }
+            return (flat, r.scale)
+        }
         let scale = images.map(\.1).max() ?? 1
         // Bring every image to the same density so a 1x and a 2x capture line up.
         let sizes = images.map { img, s in
@@ -51,7 +56,8 @@ public enum ImageCombiner {
     /// The same layout as `combine`, but as a blank canvas with each picture as a separate image layer,
     /// so pieces can still be moved, resized or overlapped afterwards.
     public static func layered(_ images: [(CGImage, CGFloat)], layout: CombineLayout,
-                               background: RGBA? = RGBA(1, 1, 1)) -> (canvas: CGImage, layers: [Annotation], scale: CGFloat)? {
+                               background: RGBA? = RGBA(1, 1, 1),
+                               numbered: Bool = false) -> (canvas: CGImage, layers: [Annotation], scale: CGFloat)? {
         guard !images.isEmpty else { return nil }
         let scale = images.map(\.1).max() ?? 1
         let sizes = images.map { img, s in
@@ -73,9 +79,11 @@ public enum ImageCombiner {
             ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
         }
         guard let canvas = ctx.makeImage() else { return nil }
-        let layers: [Annotation] = zip(images, placed.frames).compactMap { pair, frame in
+        let layers: [Annotation] = zip(images, placed.frames).enumerated().compactMap { i, item in
+            let (pair, frame) = item
             guard let png = ImageCodec.encode(pair.0, format: .png, scale: pair.1) else { return nil }
             return Annotation(kind: .image, start: frame.origin, end: CGPoint(x: frame.maxX, y: frame.maxY),
+                              number: numbered ? i + 1 : 0,
                               style: AnnotationStyle(color: .white, lineWidth: 0, shadow: false, opacity: 1), imagePNG: png)
         }
         return (canvas, layers, scale)

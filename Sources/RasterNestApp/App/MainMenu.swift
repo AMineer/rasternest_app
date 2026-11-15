@@ -58,6 +58,7 @@ enum MainMenu {
             item("Cut", "cut:", "x"),
             item("Copy", "copy:", "c"),
             item("Paste", "paste:", "v"),
+            item("Fit Canvas to Content", "fitCanvas:"),
             item("Delete", "delete:"),
             item("Select All", "selectAll:", "a"),
         ]))
