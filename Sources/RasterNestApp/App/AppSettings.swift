@@ -20,6 +20,7 @@ final class AppSettings: ObservableObject {
         static let recordMicrophone = "recordMicrophone"
         static let showClicks = "showClicks"
         static let adjustBeforeCapture = "adjustBeforeCapture"
+        static let captureCursor = "captureCursor"
         static let defaultFrame = "defaultFrame"
         static let showKeystrokes = "showKeystrokes"
         static let showAllTyping = "showAllTyping"
@@ -42,6 +43,7 @@ final class AppSettings: ObservableObject {
     @Published var recordMicrophone: Bool { didSet { defaults.set(recordMicrophone, forKey: Keys.recordMicrophone) } }
     @Published var showClicks: Bool { didSet { defaults.set(showClicks, forKey: Keys.showClicks) } }
     @Published var adjustBeforeCapture: Bool { didSet { defaults.set(adjustBeforeCapture, forKey: Keys.adjustBeforeCapture) } }
+    @Published var captureCursor: Bool { didSet { defaults.set(captureCursor, forKey: Keys.captureCursor) } }
     @Published var showKeystrokes: Bool { didSet { defaults.set(showKeystrokes, forKey: Keys.showKeystrokes) } }
     @Published var showAllTyping: Bool { didSet { defaults.set(showAllTyping, forKey: Keys.showAllTyping) } }
 
@@ -86,6 +88,7 @@ final class AppSettings: ObservableObject {
         recordMicrophone = defaults.bool(forKey: Keys.recordMicrophone)
         showClicks = defaults.bool(forKey: Keys.showClicks)
         adjustBeforeCapture = defaults.bool(forKey: Keys.adjustBeforeCapture)
+        captureCursor = defaults.bool(forKey: Keys.captureCursor)
         showKeystrokes = defaults.bool(forKey: Keys.showKeystrokes)
         showAllTyping = defaults.bool(forKey: Keys.showAllTyping)
         defaultFrame = defaults.data(forKey: Keys.defaultFrame).flatMap { try? JSONDecoder().decode(CanvasEffects.self, from: $0) }

@@ -11,6 +11,9 @@ public final class MacScreenCapturer: ScreenCapturer {
     public static let backendName = "screencapturekit"
     public var name: String { Self.backendName }
 
+    /// Include the mouse pointer in screenshots.
+    public var showsCursor = false
+
     public init() {}
 
     // MARK: ScreenCapturer
@@ -50,7 +53,7 @@ public final class MacScreenCapturer: ScreenCapturer {
             } else {
                 id = CGMainDisplayID()
             }
-            let (image, scale) = try await Self.snapshot(displayID: id)
+            let (image, scale) = try await Self.snapshot(displayID: id, showsCursor: showsCursor)
             return try Self.result(image, scale: scale)
         case .rect(let rect):
             try Self.requirePermission()
@@ -62,11 +65,11 @@ public final class MacScreenCapturer: ScreenCapturer {
             }
             let bounds = CGDisplayBounds(id)
             let local = rect.intersection(bounds).offsetBy(dx: -bounds.minX, dy: -bounds.minY)
-            let (image, scale) = try await Self.snapshot(displayID: id, sourceRect: local)
+            let (image, scale) = try await Self.snapshot(displayID: id, sourceRect: local, showsCursor: showsCursor)
             return try Self.result(image, scale: scale)
         case .window(let id):
             try Self.requirePermission()
-            let (image, scale) = try await Self.captureWindow(id: id)
+            let (image, scale) = try await Self.captureWindow(id: id, showsCursor: showsCursor)
             return try Self.result(image, scale: scale)
         }
     }
@@ -111,7 +114,8 @@ public final class MacScreenCapturer: ScreenCapturer {
     }
 
     /// Grabs a display (or part of it, in display-local points) at native resolution.
-    public static func snapshot(displayID: CGDirectDisplayID, sourceRect: CGRect? = nil) async throws -> (CGImage, Double) {
+    public static func snapshot(displayID: CGDirectDisplayID, sourceRect: CGRect? = nil,
+                                showsCursor: Bool = false) async throws -> (CGImage, Double) {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
             throw CaptureFailure.notFound("Display \(displayID) is not available.")
@@ -124,14 +128,14 @@ public final class MacScreenCapturer: ScreenCapturer {
         if sourceRect != nil { config.sourceRect = area }
         config.width = max(1, Int((area.width * scale).rounded()))
         config.height = max(1, Int((area.height * scale).rounded()))
-        config.showsCursor = false
+        config.showsCursor = showsCursor
         config.captureResolution = .best
         let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
         return (image, scale)
     }
 
     /// Captures one window's full contents, even if partly covered.
-    public static func captureWindow(id: CGWindowID) async throws -> (CGImage, Double) {
+    public static func captureWindow(id: CGWindowID, showsCursor: Bool = false) async throws -> (CGImage, Double) {
         let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
         guard let window = content.windows.first(where: { $0.windowID == id }) else {
             throw CaptureFailure.notFound("Window \(id) is not on screen. Run `rnest windows`.")
@@ -141,7 +145,7 @@ public final class MacScreenCapturer: ScreenCapturer {
         let config = SCStreamConfiguration()
         config.width = max(1, Int(filter.contentRect.width * scale))
         config.height = max(1, Int(filter.contentRect.height * scale))
-        config.showsCursor = false
+        config.showsCursor = showsCursor
         config.captureResolution = .best
         config.ignoreShadowsSingleWindow = true
         let image = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)

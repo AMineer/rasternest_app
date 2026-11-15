@@ -125,6 +125,9 @@ enum AgentOps {
             return Captured(png: png, scale: PNGInfo(png)?.scale ?? 1)
         }
         let capturer = try Capturers.make()
+        #if canImport(RasterNestRender)
+        if spec.cursor == true, let mac = capturer as? MacScreenCapturer { mac.showsCursor = true }
+        #endif
         let target: CaptureTarget
         if spec.window != nil || spec.app != nil {
             target = .window(try await findWindow(spec, capturer: capturer).id)

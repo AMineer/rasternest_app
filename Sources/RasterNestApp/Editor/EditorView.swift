@@ -157,7 +157,16 @@ private struct InspectorBar: View {
         let s = model.pixelScale
         switch kind {
         case .pixelate:
-            slider("Block", \.lineWidth, 4 * s...40 * s)
+            Picker("", selection: Binding(get: { model.inspectedStyle.isBlur },
+                                          set: { v in model.updateInspectedStyle(coalesce: "blur") { $0.blur = v ? true : nil } })) {
+                Text("Pixelate").tag(false)
+                Text("Blur").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("How to hide what's underneath")
+            slider(model.inspectedStyle.isBlur ? "Strength" : "Block", \.lineWidth, 4 * s...40 * s)
         case .spotlight:
             slider("Dim", \.opacity, 0.15...0.9)
         case .magnify:
@@ -192,7 +201,15 @@ private struct InspectorBar: View {
             slider("Width", \.lineWidth, 1 * s...20 * s)
             toggle("Fill", \.filled)
             toggle("Shadow", \.shadow)
-        case .arrow, .line, .pen:
+        case .arrow:
+            ColorSwatches(model: model)
+            slider("Width", \.lineWidth, 1 * s...20 * s)
+            Toggle("Both Ends", isOn: Binding(get: { model.inspectedStyle.isDoubleHeaded },
+                                              set: { v in model.updateInspectedStyle(coalesce: "heads") { $0.heads = v ? 2 : nil } }))
+                .toggleStyle(.checkbox)
+                .help("Arrowheads at both ends")
+            toggle("Shadow", \.shadow)
+        case .line, .pen:
             ColorSwatches(model: model)
             slider("Width", \.lineWidth, 1 * s...20 * s)
             toggle("Shadow", \.shadow)

@@ -54,6 +54,9 @@ struct Annotate: AsyncParsableCommand {
     @Option(name: .long, help: "Pixelate matches: email, phone, ipv4, url, card, token, or any literal text.")
     var redact: [String] = []
 
+    @Flag(name: .long, help: "Blur redactions instead of pixelating them.")
+    var blur = false
+
     @Option(name: .long, help: "Frame: none or docs.")
     var frame: String?
 
@@ -88,7 +91,9 @@ struct Annotate: AsyncParsableCommand {
         annotationSpec.annotations += arrow.map { Item(type: "arrow", to: Anchor(text: $0)) }
         annotationSpec.annotations += highlight.map { Item(type: "highlight", around: Anchor(text: $0)) }
         annotationSpec.annotations += redact.map {
-            RedactionPattern(rawValue: $0.lowercased()) != nil ? Item(type: "redact", pattern: $0) : Item(type: "redact", match: $0)
+            RedactionPattern(rawValue: $0.lowercased()) != nil
+                ? Item(type: "redact", pattern: $0, style: blur ? "blur" : nil)
+                : Item(type: "redact", match: $0, style: blur ? "blur" : nil)
         }
         if annotationSpec.annotations.isEmpty && annotationSpec.frame == nil {
             throw ValidationError("Nothing to add. Give --spec, or flags like --step, --box, --arrow, --redact or --frame.")
@@ -267,6 +272,7 @@ enum MCPTools {
                         "rect": ["type": "array", "items": ["type": "number"], "description": "[x, y, width, height] in screen points."],
                         "display": ["type": "integer", "description": "Display index for a full-screen capture."],
                         "interactive": ["type": "boolean", "description": "Let the user select an area or window."],
+                        "cursor": ["type": "boolean", "description": "Include the mouse pointer."],
                         "delay": ["type": "number", "description": "Seconds to wait first."],
                         "output": ["type": "string", "description": "PNG path. Default: ~/Pictures/RasterNest/agent/<timestamp>.png"],
                         "include_image": ["type": "boolean", "description": "Return a preview image (default true)."],
@@ -281,7 +287,7 @@ enum MCPTools {
                     } else {
                         let spec = Guide.CaptureSpec(app: string(args, "app"), title: string(args, "title"),
                                                      rect: args["rect"]?.array?.compactMap(\.double),
-                                                     display: args["display"]?.int)
+                                                     display: args["display"]?.int, cursor: args["cursor"]?.bool)
                         shot = try await AgentOps.capture(spec, relativeTo: nil, interactive: args["interactive"]?.bool ?? false)
                     }
                     let url = outputURL(string(args, "output"), ext: "png")
@@ -391,7 +397,7 @@ enum MCPTools {
             MCPTool(
                 name: "annotate",
                 description: """
-                Add markup to an image and save it. Each annotation: {"type": step|arrow|line|box|ellipse|highlight|text|pixelate|redact|spotlight|magnify, …}. \
+                Add markup to an image and save it. Each annotation: {"type": step|arrow|line|box|ellipse|highlight|text|pixelate|blur|redact|spotlight|magnify, …}. \
                 step: {"at": anchor, "label"?}. arrow/line: {"to": anchor, "from"?: anchor, "label"?}. box/ellipse/highlight/pixelate/spotlight/magnify: {"around": anchor}. \
                 text: {"text": "…", "at": anchor}. redact: {"pattern": email|phone|ipv4|url|card|token} or {"regex": "…"} or {"match": "literal"} or {"around": anchor}. \
                 Optional on any: color (name or #RRGGBB), width, size, padding. Anchors: {"text": "Save"} is best. \
@@ -409,6 +415,8 @@ enum MCPTools {
                                 "pattern": ["type": "string"], "regex": ["type": "string"], "match": ["type": "string"],
                                 "color": ["type": "string"], "width": ["type": "number"], "size": ["type": "number"],
                                 "padding": ["type": "number"], "zoom": ["type": "number"],
+                                "heads": ["type": "integer", "description": "Arrows: 2 for heads at both ends."],
+                                "style": ["type": "string", "description": "pixelate/redact: \"blur\" for a Gaussian blur."],
                             ],
                             "required": ["type"],
                         ]],
@@ -463,6 +471,36 @@ enum MCPTools {
                     let cmd = try Export.parse(argv)
                     guard let url = try await cmd.perform() else { throw ValidationError("Export needs an output file.") }
                     return [.text(url.path)]
+                }
+            ),
+            MCPTool(
+                name: "combine",
+                description: "Combine several images or .rasternest files into one image: side by side (before/after), stacked, or a grid. Returns the path and a preview.",
+                inputSchema: [
+                    "type": "object",
+                    "properties": [
+                        "inputs": ["type": "array", "items": ["type": "string"], "description": "Files in order (at least two)."],
+                        "layout": ["type": "string", "description": "horizontal (default), vertical or grid."],
+                        "gap": ["type": "number", "description": "Space between images in points (default 24)."],
+                        "padding": ["type": "number", "description": "Space around the outside in points (default 0)."],
+                        "columns": ["type": "integer", "description": "Grid columns."],
+                        "match_sizes": ["type": "boolean", "description": "Match heights/widths (default true)."],
+                        "background": ["type": "string", "description": "white (default), none, a color name or #RRGGBB."],
+                        "output": ["type": "string", "description": ".png, .jpg or .rasternest. Default: ~/Pictures/RasterNest/agent/<timestamp>.png"],
+                    ],
+                    "required": ["inputs"],
+                ],
+                handler: { args in
+                    let inputs = (args["inputs"]?.array ?? []).compactMap(\.string)
+                        .map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+                    guard inputs.count >= 2 else { throw ValidationError("`inputs` needs at least two files.") }
+                    let out = outputURL(string(args, "output"), ext: "png")
+                    let url = try AgentOps.combine(inputs, arrangement: string(args, "layout") ?? "horizontal",
+                                                   gap: args["gap"]?.double ?? 24, padding: args["padding"]?.double ?? 0,
+                                                   columns: args["columns"]?.int, matchSizes: args["match_sizes"]?.bool ?? true,
+                                                   background: string(args, "background") ?? "white", output: out)
+                    let doc = try AgentOps.loadDocument(url)
+                    return describe(url, doc: doc, includeImage: true)
                 }
             ),
             MCPTool(
@@ -646,5 +684,105 @@ struct Record: AsyncParsableCommand {
         sigint.cancel()
         if let mp4 = result.mp4 { print(mp4.path) }
         if let gif = result.gif { print(gif.path) }
+    }
+}
+
+// MARK: - combine
+
+struct Combine: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Combine several images or captures into one: side by side, stacked, or a grid (macOS).",
+        discussion: """
+        Examples:
+          rnest combine before.png after.png -o compare.png
+          rnest combine step1.rasternest step2.rasternest step3.rasternest --layout vertical --gap 32
+          rnest combine *.png --layout grid --columns 3 --background none -o sheet.png
+        """
+    )
+
+    @Argument(help: "Images or .rasternest files, in order.")
+    var inputs: [String]
+
+    @Option(name: .long, help: "horizontal (side by side), vertical (stacked) or grid.")
+    var layout: String = "horizontal"
+
+    @Option(name: .long, help: "Space between images, in points.")
+    var gap: Double = 24
+
+    @Option(name: .long, help: "Space around the outside, in points.")
+    var padding: Double = 0
+
+    @Option(name: .long, help: "Grid columns (default: near-square).")
+    var columns: Int?
+
+    @Flag(name: .customLong("no-match"), help: "Keep each image's own size instead of matching heights/widths.")
+    var noMatch = false
+
+    @Option(name: .long, help: "Background: white, none (transparent), a color name or #RRGGBB.")
+    var background: String = "white"
+
+    @Option(name: .shortAndLong, help: "Output .png, .jpg or .rasternest. Default: combined.png next to the first input.")
+    var output: String?
+
+    @Flag(name: [.customShort("c"), .long], help: "Also copy the result to the clipboard.")
+    var clipboard = false
+
+    func validate() throws {
+        if inputs.count < 2 { throw ValidationError("Give at least two images to combine.") }
+        if CombineLayout.Arrangement(rawValue: layout.lowercased()) == nil {
+            throw ValidationError("--layout must be horizontal, vertical or grid.")
+        }
+    }
+
+    func run() async throws {
+        let first = URL(fileURLWithPath: (inputs[0] as NSString).expandingTildeInPath)
+        let out = output.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+            ?? first.deletingLastPathComponent().appendingPathComponent("combined.png")
+        let url = try AgentOps.combine(inputs.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) },
+                                       arrangement: layout, gap: gap, padding: padding, columns: columns,
+                                       matchSizes: !noMatch, background: background, output: out)
+        #if canImport(RasterNestRender)
+        if clipboard, let (image, scale) = ImageCodec.load(url), let png = ImageCodec.encode(image, format: .png, scale: scale) {
+            try Clipboard.copyPNG(png)
+        }
+        #endif
+        print(url.path)
+    }
+}
+
+extension AgentOps {
+    /// Combines files into one image (or editable document) at `output`.
+    static func combine(_ inputs: [URL], arrangement: String, gap: Double, padding: Double, columns: Int?,
+                        matchSizes: Bool, background: String, output: URL) throws -> URL {
+        #if canImport(RasterNestRender)
+        guard let arr = CombineLayout.Arrangement(rawValue: arrangement.lowercased()) else {
+            throw ValidationError("Layout must be horizontal, vertical or grid.")
+        }
+        let images = try inputs.map { try Export.flattened($0) }
+        let scale = images.map(\.1).max() ?? 1
+        let layout = CombineLayout(arrangement: arr, gap: CGFloat(gap) * scale, padding: CGFloat(padding) * scale,
+                                   columns: columns, matchSizes: matchSizes)
+        let bg: RGBA? = ["none", "transparent", "clear"].contains(background.lowercased())
+            ? nil : try AnnotationSpec.parseColor(background)
+        guard let (image, outScale) = ImageCombiner.combine(images, layout: layout, background: bg) else {
+            throw CaptureFailure.backendFailed("Combining failed.")
+        }
+        try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if output.pathExtension.lowercased() == NestDocument.fileExtension {
+            guard let doc = ImageCodec.makeDocument(image: image, scale: outScale, annotations: []) else {
+                throw CaptureFailure.backendFailed("Encoding failed.")
+            }
+            try doc.encoded().write(to: output, options: .atomic)
+        } else {
+            let fmt = ExportFormat(fileExtension: output.pathExtension.isEmpty ? "png" : output.pathExtension) ?? .png
+            guard let data = ImageCodec.encode(image, format: fmt, scale: outScale) else {
+                throw CaptureFailure.backendFailed("Encoding failed.")
+            }
+            try data.write(to: output, options: .atomic)
+        }
+        return output
+        #else
+        throw CaptureFailure.unsupported("`rnest combine` needs macOS for now.")
+        #endif
     }
 }

@@ -27,7 +27,8 @@
 
 **Capture (⌃⇧C by default)**
 - All-in-one: hover to highlight a window and click to capture it; drag to capture an area; Space captures the whole display
-- Frozen screen while you select, a pixel magnifier, and live size readout
+- Frozen screen while you select, a pixel magnifier, and live size readout. Press **C** to copy the hex color under the magnifier
+- Optionally include the mouse pointer in screenshots (Settings, or `rnest capture --cursor`)
 - **Screen recording** (⌃⇧R): record an area, window or screen to MP4 (H.264, 30 fps) with optional system audio, microphone and on-screen keystrokes; trim it and export a GIF
 - **Adjust before capturing**: after dragging an area, resize it with handles or arrow keys and press Return
 - **Scrolling capture** (⌃⇧S): pick the area that scrolls, scroll, and get one tall image. Sticky headers appear once
@@ -40,7 +41,9 @@
 - Drag a thumbnail straight into Slack, Notion or a doc
 
 **Markup**
-- Arrow, line, rectangle, ellipse, highlighter, text and callouts, numbered steps, pixelate (redact), spotlight, **magnify lens**, pen, crop
+- Arrow (one or both ends), line, rectangle, ellipse, highlighter, text and callouts, numbered steps, pixelate or **blur** (redact), spotlight, **magnify lens**, pen, crop
+- **Right-click the image** to copy it, or copy the text in it (OCR)
+- **Combine**: drag captures into the Combine pane to put them side by side, stacked or in a grid (great for before/after)
 - **Frames**: padding, gradient or solid background, rounded corners, drop shadow and border, with presets and a default for new captures
 - Single-key tool shortcuts (`A` arrow, `R` rect, `T` text, `N` step, `B` pixelate…), Shift to snap angles/squares
 - Per-tool styles (color, width, size, fill, shadow) that stick between captures
@@ -59,6 +62,7 @@ rnest capture --region --text       # OCR an area, print the text
 rnest ocr screenshot.png
 rnest record --app Safari --duration 8 -o demo.gif   # record a window straight to GIF
 rnest record --rect 0,120,900,600 --gif              # area → MP4 + GIF (Return to stop)
+rnest combine before.png after.png -o compare.png  # side by side (--layout vertical|grid)
 rnest export demo.mp4 --format gif --width 640   # recording → GIF
 rnest export step1.rasternest step2.rasternest --format pdf --page-size letter --captions -o guide.pdf
 rnest export notes.rasternest --format png

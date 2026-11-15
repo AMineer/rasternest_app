@@ -288,7 +288,7 @@ final class CaptureCoordinator {
                 if let image = crop(snap, rect) { await deliver(image, scale: snap.scale, mode: mode) }
             case .window(let info, let snap, let visibleRect):
                 // Prefer a clean grab of the whole window; fall back to the frozen pixels.
-                if let (image, scale) = try? await MacScreenCapturer.captureWindow(id: info.id) {
+                if let (image, scale) = try? await MacScreenCapturer.captureWindow(id: info.id, showsCursor: AppSettings.shared.captureCursor) {
                     await deliver(image, scale: CGFloat(scale), mode: mode)
                 } else if let image = crop(snap, visibleRect) {
                     await deliver(image, scale: snap.scale, mode: mode)
@@ -299,7 +299,7 @@ final class CaptureCoordinator {
 
     private func snapshot(_ screen: NSScreen) async throws -> DisplaySnapshot? {
         guard let id = screen.displayID else { return nil }
-        let (image, _) = try await MacScreenCapturer.snapshot(displayID: id)
+        let (image, _) = try await MacScreenCapturer.snapshot(displayID: id, showsCursor: AppSettings.shared.captureCursor)
         return DisplaySnapshot(screen: screen, displayID: id, image: image,
                                scale: CGFloat(image.width) / screen.frame.width)
     }

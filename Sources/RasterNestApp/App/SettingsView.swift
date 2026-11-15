@@ -52,6 +52,10 @@ struct SettingsView: View {
                 Text("Drag the handles or use the arrow keys, then press Return. Turn off to capture as soon as you let go.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Include the mouse pointer in screenshots", isOn: $settings.captureCursor)
+                Text("While selecting, press C to copy the color under the magnifier as hex.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("After capturing") {

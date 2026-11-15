@@ -119,6 +119,8 @@ final class OverlayView: NSView {
     private var adjustDrag: AdjustDrag = .none
     private var captureButton: CGRect = .null
     private var cancelButton: CGRect = .null
+    /// Shown under the loupe for a moment after C copies a color.
+    private var copiedColor: (hex: String, at: Date)?
 
     init(frame: CGRect, snapshot: DisplaySnapshot, windows: [(MacScreenCapturer.WindowInfo, CGRect)], hint: String?,
          onFinish: @escaping (SelectionOverlayController.Result) -> Void) {
@@ -327,11 +329,35 @@ final class OverlayView: NSView {
         switch event.keyCode {
         case 53: onFinish(.cancelled)                    // Esc
         case 49, 36, 76: onFinish(.display(snapshot))    // Space / Return: whole display
+        case 8: copyColorUnderMouse()                    // C: copy the hex color under the loupe
         default: super.keyDown(with: event)
         }
     }
 
     override func cancelOperation(_ sender: Any?) { onFinish(.cancelled) }
+
+    /// The sRGB hex color of the snapshot pixel under the cursor.
+    private func hexColor(at m: CGPoint) -> String? {
+        let s = snapshot.scale
+        let x = Int((m.x * s).rounded(.down)), y = Int((m.y * s).rounded(.down))
+        guard x >= 0, y >= 0, x < snapshot.image.width, y < snapshot.image.height,
+              let pixel = snapshot.image.cropping(to: CGRect(x: x, y: y, width: 1, height: 1)) else { return nil }
+        var rgba = [UInt8](repeating: 0, count: 4)
+        guard let ctx = CGContext(data: &rgba, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(pixel, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+        return String(format: "#%02X%02X%02X", rgba[0], rgba[1], rgba[2])
+    }
+
+    private func copyColorUnderMouse() {
+        guard let m = mouse, let hex = hexColor(at: m) else { NSSound.beep(); return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(hex, forType: .string)
+        copiedColor = (hex, Date())
+        needsDisplay = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in self?.needsDisplay = true }
+    }
 
     // MARK: Drawing
 
@@ -472,7 +498,26 @@ final class OverlayView: NSView {
         ctx.strokePath()
         ctx.restoreGState()
 
-        drawLabel("\(Int(cx)), \(Int(cy))", at: CGPoint(x: box.minX, y: box.maxY + 6))
+        let hex = hexColor(at: m) ?? ""
+        var label = "\(Int(cx)), \(Int(cy))   \(hex)"
+        if let copied = copiedColor, Date().timeIntervalSince(copied.at) < 1.5 {
+            label = "Copied \(copied.hex)"
+        } else if adjusting == nil {
+            label += "   C to copy"
+        }
+        // Swatch of the color under the cursor beside the label.
+        let labelOrigin = CGPoint(x: box.minX, y: box.maxY + 6)
+        drawLabel(label, at: labelOrigin)
+        if let pixel = snapshot.image.cropping(to: CGRect(x: cx, y: cy, width: 1, height: 1)) {
+            let swatch = CGRect(x: box.maxX - 18, y: box.maxY - 18, width: 12, height: 12)
+            ctx.saveGState()
+            ctx.interpolationQuality = .none
+            AnnotationRenderer.drawImage(pixel, in: swatch, ctx)
+            ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.9))
+            ctx.setLineWidth(1.5)
+            ctx.stroke(swatch)
+            ctx.restoreGState()
+        }
     }
 
     private func drawLabel(_ text: String, at p: CGPoint) {

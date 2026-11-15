@@ -29,12 +29,22 @@ public struct AnnotationStyle: Codable, Hashable, Sendable {
     public var opacity: CGFloat
     /// Magnification for the magnify lens (2 = 200%). Optional so older files decode.
     public var zoom: CGFloat?
+    /// Pixelate tool: a Gaussian blur instead of blocks. Older apps fall back to pixelating.
+    public var blur: Bool?
+    /// Arrows: 2 draws a head at both ends.
+    public var heads: Int?
+
+    public var isBlur: Bool { blur == true }
+    public var isDoubleHeaded: Bool { (heads ?? 1) >= 2 }
 
     public var zoomFactor: CGFloat { max(1.2, min(zoom ?? 2, 6)) }
 
     public init(color: RGBA = .red, lineWidth: CGFloat = 4, fontSize: CGFloat = 22,
-                filled: Bool = false, shadow: Bool = true, opacity: CGFloat = 1, zoom: CGFloat? = nil) {
+                filled: Bool = false, shadow: Bool = true, opacity: CGFloat = 1, zoom: CGFloat? = nil,
+                blur: Bool? = nil, heads: Int? = nil) {
         self.zoom = zoom
+        self.blur = blur
+        self.heads = heads
         self.color = color
         self.lineWidth = lineWidth
         self.fontSize = fontSize
