@@ -136,10 +136,15 @@ final class HotKeyRecorderView: NSView {
     private var recording = false { didSet { needsDisplay = true } }
 
     override var intrinsicContentSize: NSSize { NSSize(width: 150, height: 24) }
-    override var acceptsFirstResponder: Bool { true }
+    /// Only a click starts recording. Otherwise the first recorder became first responder when
+    /// Settings opened, silently suspending every global shortcut and capturing the next keypress.
+    private var clickedToRecord = false
+    override var acceptsFirstResponder: Bool { clickedToRecord }
+    override var canBecomeKeyView: Bool { false }
 
     override func mouseDown(with event: NSEvent) {
-        window?.makeFirstResponder(self)
+        clickedToRecord = true
+        if window?.makeFirstResponder(self) != true { clickedToRecord = false }
     }
 
     override func becomeFirstResponder() -> Bool {
@@ -151,6 +156,7 @@ final class HotKeyRecorderView: NSView {
 
     override func resignFirstResponder() -> Bool {
         recording = false
+        clickedToRecord = false
         NotificationCenter.default.post(name: AppSettings.hotKeysChanged, object: nil)
         return true
     }
