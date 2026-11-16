@@ -86,4 +86,7 @@ public readonly record struct RectD(double X, double Y, double Width, double Hei
     }
 
     public RectD Offset(double dx, double dy) => new(X + dx, Y + dy, Width, Height);
+
+    // The record's generated ToString would print Standardized (a RectD) and recurse forever.
+    public override string ToString() => IsNull ? "RectD.Null" : $"RectD({X}, {Y}, {Width}, {Height})";
 }

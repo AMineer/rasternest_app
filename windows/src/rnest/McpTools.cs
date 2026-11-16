@@ -10,7 +10,7 @@ namespace RasterNest.Cli;
 public static class McpTools
 {
     public const string Instructions =
-        "RasterNest captures, records and annotates screenshots for documentation. Typical screenshot flow: `capture` (a window by app name " +
+        "RasterNest captures, records and annotates screenshots for documentation. Use `record` for a GIF of something happening. Typical screenshot flow: `capture` (a window by app name " +
         "is usually best), look at the preview, call `ocr` to see what text is where, then `annotate` using text anchors " +
         "such as {\"text\": \"Save\"} rather than pixel coordinates. All coordinates are full-size image pixels with the origin " +
         "at the top-left; previews may be scaled down. Redact personal data (pattern \"email\", \"phone\", \"token\") before sharing. " +
@@ -111,9 +111,65 @@ public static class McpTools
             }),
 
         new("record",
-            "Record the screen to a GIF (and/or MP4). Not available in the Windows version yet.",
-            Schema(new JsonObject { ["app"] = Prop("string"), ["duration"] = Prop("number") }),
-            _ => throw new UsageException("Screen recording isn't in the Windows version yet; it's coming in the next release.")),
+            "Record the screen to a GIF (and/or MP4) for docs or demos. Target `app` (front window of that app), `window_id`, `rect` (screen pixels) or a whole display. Recording lasts `duration` seconds, or, with `during`, until that command (run with cmd.exe) finishes. Use `during` to drive the demo (e.g. `start https://…` or a script); otherwise the user acts while it records. Returns file paths and a preview frame.",
+            Schema(new JsonObject
+            {
+                ["app"] = Prop("string", "Record this app's front window."),
+                ["title"] = Prop("string", "With app: part of the window title."),
+                ["window_id"] = Prop("integer"),
+                ["rect"] = new JsonObject { ["type"] = "array", ["items"] = Prop("number"), ["description"] = "[x, y, width, height] in screen pixels." },
+                ["display"] = Prop("integer"),
+                ["duration"] = Prop("number", "Seconds (default 5 when `during` is not given; max 120)."),
+                ["during"] = Prop("string", "Command run while recording; recording stops when it exits unless duration is set."),
+                ["delay"] = Prop("number", "Seconds to wait before starting."),
+                ["format"] = Prop("string", "gif (default), mp4, or both."),
+                ["output"] = Prop("string", "Output path (.gif or .mp4). Default: Pictures\\RasterNest\\agent\\<timestamp>."),
+                ["gif_width"] = Prop("integer", "GIF width in pixels (default 800; 0 = full size)."),
+                ["gif_fps"] = Prop("number", "GIF frame rate (default 12)."),
+                ["cursor"] = Prop("boolean", "Show the pointer (default true)."),
+                ["include_image"] = Prop("boolean", "Return a preview frame (default true)."),
+            }),
+            async args =>
+            {
+                var req = new RecordRequest
+                {
+                    WindowId = args.Int("window_id") is { } id ? (uint)id : null,
+                    Capture = new CaptureSpec
+                    {
+                        App = S(args, "app"), Title = S(args, "title"), Display = args.Int("display"),
+                        Rect = (args["rect"] as JsonArray)?.Select(n => n?.GetValue<double>() ?? 0).ToList(),
+                    },
+                    During = S(args, "during"),
+                    Cursor = args.Bool("cursor") ?? true,
+                    GifWidth = args.Int("gif_width") ?? 800,
+                    GifFps = args.Num("gif_fps") ?? 12,
+                    MaxDuration = 120,
+                };
+                var duration = Math.Min(120, args.Num("duration") ?? (req.During == null ? 5 : 0));
+                req.Duration = duration > 0 ? duration : null;
+                var format = (S(args, "format") ?? "gif").ToLowerInvariant();
+                var output = S(args, "output") is { } o ? AgentOps.ExpandPath(o) : null;
+                var stem = Path.ChangeExtension(output ?? OutputPath(null, "gif"), null);
+                switch (output != null ? Path.GetExtension(output).TrimStart('.').ToLowerInvariant() : format)
+                {
+                    case "mp4" or "mov": req.Mp4 = output ?? stem + ".mp4"; break;
+                    case "both": req.Mp4 = stem + ".mp4"; req.Gif = stem + ".gif"; break;
+                    default: req.Gif = output ?? stem + ".gif"; break;
+                }
+                if (format == "both") { req.Mp4 = stem + ".mp4"; req.Gif = stem + ".gif"; }
+                if (args.Num("delay") is double delay && delay > 0) await Task.Delay(TimeSpan.FromSeconds(delay));
+                var result = await Recording.Record(req, CancellationToken.None, Console.Error.WriteLine);
+                var meta = new JsonObject
+                {
+                    ["seconds"] = Math.Round(result.Seconds, 1), ["width"] = result.Width, ["height"] = result.Height,
+                };
+                if (result.Gif != null) { meta["gif"] = result.Gif; meta["gif_bytes"] = new FileInfo(result.Gif).Length; }
+                if (result.Mp4 != null) meta["mp4"] = result.Mp4;
+                var content = new List<McpContent> { McpContent.FromText(meta.ToJsonString()) };
+                if ((args.Bool("include_image") ?? true) && await Recording.Preview(result.Mp4, result.Gif) is { } jpeg)
+                    content.Add(McpContent.FromImage(jpeg, "image/jpeg"));
+                return content;
+            }),
 
         new("ocr",
             "Read the text in an image with positions. Returns lines with boxes {x, y, width, height} in image pixels (origin top-left). Use `find` to get just the box of some text.",
@@ -191,11 +247,11 @@ public static class McpTools
             }),
 
         new("export",
-            "Flatten .rasternest files to PNG/JPEG, or combine several captures into one PDF.",
+            "Flatten .rasternest files to PNG/JPEG, combine several captures into one PDF, or convert an MP4 recording to GIF.",
             Schema(new JsonObject
             {
                 ["inputs"] = new JsonObject { ["type"] = "array", ["items"] = Prop("string") },
-                ["format"] = Prop("string", "png, jpg or pdf."),
+                ["format"] = Prop("string", "png, jpg, pdf or gif."),
                 ["output"] = Prop("string"),
                 ["page_size"] = Prop("string", "PDF: fit, letter or a4."),
                 ["captions"] = Prop("boolean", "PDF: file name under each image."),

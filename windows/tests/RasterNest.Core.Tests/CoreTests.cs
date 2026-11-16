@@ -43,6 +43,13 @@ public class GeometryTests
     }
 
     [Fact]
+    public void RectPrintsWithoutRecursing()
+    {
+        Assert.Equal("RectD(1, 2, 3, 4)", new RectD(1, 2, 3, 4).ToString());
+        Assert.Equal("RectD.Null", RectD.Null.ToString());
+    }
+
+    [Fact]
     public void SnapSquare() =>
         Assert.Equal(new PointD(-20, 40), Geometry.SnapSquare(new PointD(10, 10), new PointD(0, 40)));
 }

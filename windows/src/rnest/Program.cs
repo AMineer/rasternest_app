@@ -155,10 +155,81 @@ public static class Program
 
     private static Command RecordCommand()
     {
-        var cmd = new Command("record", "Record the screen, a window or an area to MP4 and/or GIF.");
-        // Accept everything so scripts written for the Mac get a clear message rather than a parse error.
-        cmd.TreatUnmatchedTokensAsErrors = false;
-        cmd.SetAction(Run((r, ct) => throw new UsageException("Screen recording isn't in the Windows version yet; it's coming in the next release.")));
+        var fullscreen = Flag("--fullscreen", "Record a whole display (default when no target is given).", "-f");
+        var display = Opt<int?>("--display", "Display index for --fullscreen (see `rnest displays`).");
+        var rect = Opt<string?>("--rect", "Area in screen pixels: x,y,width,height (origin top-left of the main display).");
+        var windowId = Opt<uint?>("--window-id", "Record one window (see `rnest windows`).");
+        var app = Opt<string?>("--app", "Record the front window of this app.");
+        var title = Opt<string?>("--title", "With --app: a window whose title contains this.");
+        var duration = Opt<double?>("--duration", "Seconds to record.", "-d");
+        var runCmd = Opt<string?>("--run", "Command to run (with cmd.exe) once recording starts; recording stops when it exits (unless --duration is set).");
+        var output = Opt<string?>("--output", "Output .mp4 or .gif. Default: Pictures\\RasterNest\\<timestamp>.mp4", "-o");
+        var gif = Flag("--gif", "Also write a GIF next to the MP4.");
+        var gifWidth = Opt<int>("--gif-width", "GIF width in pixels (0 = full size).");
+        gifWidth.DefaultValueFactory = _ => 800;
+        var gifFps = Opt<double>("--gif-fps", "GIF frame rate.");
+        gifFps.DefaultValueFactory = _ => 12;
+        var fps = Opt<int>("--fps", "Video frame rate.");
+        fps.DefaultValueFactory = _ => 30;
+        var delay = Opt<double>("--delay", "Seconds to wait before recording.");
+        var audio = Flag("--audio", "Record system audio (MP4 only; not yet on Windows).");
+        var mic = Flag("--mic", "Record the microphone (MP4 only; not yet on Windows).");
+        var noCursor = Flag("--no-cursor", "Hide the mouse pointer.");
+        var quiet = Flag("--quiet", "Only print errors.", "-q");
+        var cmd = new Command("record", """
+            Record the screen, a window or an area to MP4 and/or GIF.
+            Examples:
+              rnest record --app msedge --duration 8 -o demo.gif
+              rnest record --rect 0,120,900,600 --duration 5 --gif
+              rnest record --app WindowsTerminal --run "demo.cmd" -o demo.gif
+              rnest record --fullscreen            (until Return or Ctrl+C)
+            """) { fullscreen, display, rect, windowId, app, title, duration, runCmd, output, gif, gifWidth, gifFps, fps, delay, audio, mic, noCursor, quiet };
+        cmd.SetAction(Run(async (r, ct) =>
+        {
+            var modes = new[] { r.GetValue(fullscreen), r.GetValue(rect) != null, r.GetValue(windowId) != null, r.GetValue(app) != null }.Count(b => b);
+            if (modes > 1) throw new UsageException("Choose only one of --fullscreen, --rect, --window-id, --app.");
+            if (r.GetValue(audio) || r.GetValue(mic)) throw new UsageException("Recording sound isn't in the Windows version yet. Leave out --audio and --mic.");
+            if (r.GetValue(duration) is <= 0) throw new UsageException("--duration must be more than zero.");
+            var q = r.GetValue(quiet);
+            var req = new RecordRequest
+            {
+                WindowId = r.GetValue(windowId), Duration = r.GetValue(duration), During = r.GetValue(runCmd),
+                Fps = Math.Clamp(r.GetValue(fps), 1, 60), Cursor = !r.GetValue(noCursor),
+                GifWidth = r.GetValue(gifWidth), GifFps = r.GetValue(gifFps),
+                Capture = new CaptureSpec
+                {
+                    App = r.GetValue(app), Title = r.GetValue(title), Display = r.GetValue(display),
+                    Rect = r.GetValue(rect) is { } rs ? [ParseRect(rs).X, ParseRect(rs).Y, ParseRect(rs).Width, ParseRect(rs).Height] : null,
+                },
+            };
+            var outPath = r.GetValue(output) is { } o ? AgentOps.ExpandPath(o)
+                : Path.Combine(CaptureNaming.DefaultCaptureFolder(), CaptureNaming.TimestampedName() + ".mp4");
+            if (outPath.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)) req.Gif = outPath;
+            else
+            {
+                req.Mp4 = Path.ChangeExtension(outPath, "mp4");
+                if (r.GetValue(gif)) req.Gif = Path.ChangeExtension(outPath, "gif");
+            }
+            if (r.GetValue(delay) is > 0 and var d) await Task.Delay(TimeSpan.FromSeconds(d), ct);
+
+            // Stop on Ctrl+C, or Return when someone is at the keyboard.
+            using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            ConsoleCancelEventHandler onCancel = (_, e) => { e.Cancel = true; stop.Cancel(); };
+            Console.CancelKeyPress += onCancel;
+            if (req.Duration == null && req.During == null && !Console.IsInputRedirected)
+            {
+                if (!q) Console.Error.WriteLine("Recording… press Return or Ctrl+C to stop.");
+                _ = Task.Run(() => { Console.ReadLine(); stop.Cancel(); });
+            }
+            else if (!q) Console.Error.WriteLine("Recording…");
+            try
+            {
+                var result = await Recording.Record(req, stop.Token, m => { if (!q) Console.Error.WriteLine(m); });
+                if (result.Mp4 != null) Console.WriteLine(result.Mp4);
+                if (result.Gif != null) Console.WriteLine(result.Gif);
+            }
+            finally { Console.CancelKeyPress -= onCancel; }
+        }));
         return cmd;
     }
 
@@ -299,7 +370,7 @@ public static class Program
     // MARK: export
 
     internal sealed record ExportRequest(IReadOnlyList<string> Inputs, string? Format, string? Output, string PageSize, bool Captions,
-                                         int Quality = 90, bool Clipboard = false);
+                                         int Quality = 90, bool Clipboard = false, int GifWidth = 800, double GifFps = 12);
 
     /// <summary>Does the export and returns the file written (null when writing to stdout).</summary>
     internal static string? PerformExport(ExportRequest req)
@@ -323,8 +394,14 @@ public static class Program
             finally { foreach (var p in pages) p.Image.Dispose(); }
             return outPdf;
         }
-        if (Path.GetExtension(input).ToLowerInvariant() is ".mp4" or ".mov" or ".m4v")
-            throw new UsageException("Turning recordings into GIFs isn't in the Windows version yet; it's coming with screen recording.");
+        if (Path.GetExtension(input).ToLowerInvariant() is ".mp4" or ".mov" or ".m4v" or ".wmv")
+        {
+            if (req.Format is { } vf && !vf.Equals("gif", StringComparison.OrdinalIgnoreCase)) throw new UsageException("Recordings can only be exported as gif.");
+            if (req.Output == "-") throw new UsageException("GIF export needs an output file, not stdout.");
+            var outGif = req.Output != null ? AgentOps.ExpandPath(req.Output) : Path.ChangeExtension(input, "gif");
+            Recording.ConvertToGif(input, outGif, req.GifFps, req.GifWidth).GetAwaiter().GetResult();
+            return outGif;
+        }
         ExportFormat fmt;
         if (req.Format is { } f) fmt = ExportFormats.FromExtension(f) ?? throw new UsageException($"Unknown format `{f}`. Use png or jpg.");
         else if (req.Output is { } o && o != "-" && ExportFormats.FromExtension(Path.GetExtension(o)) is { } fromExt) fmt = fromExt;
@@ -358,12 +435,17 @@ public static class Program
         var quality = Opt<int>("--quality", "JPEG quality, 0–100.");
         quality.DefaultValueFactory = _ => 90;
         var clipboard = Flag("--clipboard", "Also copy the exported image to the clipboard.", "-c");
-        var cmd = new Command("export", "Flatten captures to PNG/JPEG or combine them into a PDF.")
-            { inputs, format, pageSize, captions, output, quality, clipboard };
+        var width = Opt<int>("--width", "GIF width in pixels (recordings only). 0 keeps the original width.");
+        width.DefaultValueFactory = _ => 800;
+        var fps = Opt<double>("--fps", "GIF frame rate (recordings only).");
+        fps.DefaultValueFactory = _ => 12;
+        var cmd = new Command("export", "Flatten captures to PNG/JPEG, combine them into a PDF, or turn a recording into a GIF.")
+            { inputs, format, pageSize, captions, output, quality, clipboard, width, fps };
         cmd.SetAction(Run((r, ct) =>
         {
             var path = PerformExport(new ExportRequest(r.GetValue(inputs) ?? [], r.GetValue(format), r.GetValue(output), r.GetValue(pageSize)!,
-                                                       r.GetValue(captions), r.GetValue(quality), r.GetValue(clipboard)));
+                                                       r.GetValue(captions), r.GetValue(quality), r.GetValue(clipboard),
+                                                       r.GetValue(width), r.GetValue(fps)));
             if (path != null) Console.WriteLine(path);
             return Task.CompletedTask;
         }));
