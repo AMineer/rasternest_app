@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Platform-neutral model: annotations, geometry, the .rasternest format, annotation specs,
+       guides and the MCP protocol. A port of Sources/RasterNestCore; keep the two in step. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>RasterNest.Core</RootNamespace>
+  </PropertyGroup>
+</Project>
