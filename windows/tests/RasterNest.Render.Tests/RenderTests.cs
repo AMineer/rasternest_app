@@ -100,4 +100,42 @@ public class RenderTests
         Assert.StartsWith("%PDF", head);
         Assert.Contains("/Count 2", head);
     }
+
+    [Fact]
+    public void GifRoundTripsFramesAndColors()
+    {
+        using var ms = new MemoryStream();
+        using (var gif = new GifEncoder(ms, 64, 32))
+        {
+            using var a = new SKBitmap(64, 32);
+            a.Erase(SKColors.White);
+            gif.AddFrame(a, 10);
+            using var b = a.Copy();
+            using (var c = new SKCanvas(b)) using (var p = new SKPaint { Color = new SKColor(200, 30, 40) }) c.DrawRect(10, 5, 20, 10, p);
+            gif.AddFrame(b, 10);
+            gif.AddFrame(b, 10); // unchanged frame
+            // Many colours: a gradient forces the quantized palette.
+            using var g = new SKBitmap(64, 32);
+            for (var x = 0; x < 64; x++) for (var y = 0; y < 32; y++) g.SetPixel(x, y, new SKColor((byte)(x * 4), (byte)(y * 8), 128));
+            gif.AddFrame(g, 10);
+        }
+        ms.Position = 0;
+        using var codec = SKCodec.Create(new SKManagedStream(ms, false));
+        Assert.NotNull(codec);
+        Assert.Equal(4, codec.FrameCount);
+        Assert.Equal(-1, codec.RepetitionCount); // Skia: -1 = loops forever
+        SKColor PixelOf(int frame, int x, int y)
+        {
+            using var bmp = new SKBitmap(codec.Info.WithColorType(SKColorType.Bgra8888).WithAlphaType(SKAlphaType.Premul));
+            Assert.Equal(SKCodecResult.Success, codec.GetPixels(bmp.Info, bmp.GetPixels(), new SKCodecOptions(frame)));
+            return bmp.GetPixel(x, y);
+        }
+        Assert.Equal(SKColors.White, PixelOf(0, 15, 10));
+        Assert.Equal(new SKColor(200, 30, 40), PixelOf(1, 15, 10));
+        Assert.Equal(SKColors.White, PixelOf(1, 50, 25)); // unchanged area kept from frame 0
+        Assert.Equal(new SKColor(200, 30, 40), PixelOf(2, 15, 10));
+        var q = PixelOf(3, 40, 20);
+        Assert.InRange(q.Red, 150, 170);
+        Assert.InRange(q.Green, 150, 170);
+    }
 }

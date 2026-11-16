@@ -229,12 +229,13 @@ Captures from the MCP server go to `~/Pictures/RasterNest/agent/` unless the age
 
 ## Platform notes
 
-| | macOS | Linux |
-|---|---|---|
-| `record` | ✓ | not yet |
-| `combine` | ✓ | not yet |
-| `ocr --json` | Vision | tesseract |
-| `annotate` → `.rasternest` | ✓ | ✓ |
-| `annotate` → `.png`/`.jpg` | ✓ | not yet |
-| `guide run` | ✓ | not yet (needs PNG rendering) |
-| `mcp` | ✓ | ✓ (no preview images) |
+| | macOS | Windows (preview) | Linux |
+|---|---|---|---|
+| `capture` | ✓ | ✓ (`--rect` in pixels; `--app` matches the process or app name) | ✓ |
+| `record` | ✓ | ✓ (no sound yet) | not yet |
+| `combine` | ✓ | ✓ | not yet |
+| `ocr --json` | Vision | Windows OCR | tesseract |
+| `annotate` → `.rasternest` | ✓ | ✓ | ✓ |
+| `annotate` → `.png`/`.jpg` | ✓ | ✓ | not yet |
+| `guide run` | ✓ | ✓ (`before` runs in cmd.exe) | not yet (needs PNG rendering) |
+| `mcp` | ✓ | ✓ | ✓ (no preview images) |
