@@ -1,0 +1,15 @@
+<Project>
+  <!-- Shared settings for every RasterNest .NET project. The version comes from the repo's VERSION file,
+       the same one scripts/set-version.sh updates for the Mac app. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../VERSION').Trim())</Version>
+    <Company>Anthony Mineer</Company>
+    <Product>RasterNest</Product>
+    <Copyright>Copyright © Anthony Mineer</Copyright>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

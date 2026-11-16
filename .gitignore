@@ -7,3 +7,8 @@ xcuserdata/
 DerivedData/
 /dist/
 /homebrew-out/
+# .NET (Windows port)
+windows/**/bin/
+windows/**/obj/
+windows/**/AppPackages/
+*.user

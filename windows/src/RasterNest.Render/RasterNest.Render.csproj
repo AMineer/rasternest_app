@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Draws annotations and frames with SkiaSharp; shared by rnest.exe and the editor.
+       A port of Sources/RasterNestRender (CoreGraphics on the Mac). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>RasterNest.Render</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RasterNest.Core/RasterNest.Core.csproj" />
+  </ItemGroup>
+</Project>
