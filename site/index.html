@@ -263,6 +263,20 @@ section.alt .panel { background: var(--bg); }
 .btn-coffee { background: #FFDD00; color: #0B1020; }
 .btn-coffee:hover { background: #F5D000; }
 
+.agent-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 960px) { .agent-grid { grid-template-columns: minmax(0, 1fr); } }
+.agent-grid .panel p, .agent-grid .panel li { color: var(--muted); }
+.agent-grid ol { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; }
+.agent-grid ol li { display: list-item; }
+.agent-grid p code { overflow-wrap: anywhere; }
+.snippet { position: relative; background: var(--code-bg); color: var(--code-fg); border-radius: 10px; min-width: 0; }
+.snippet pre { margin: 0; padding: 14px 16px; overflow-x: auto; font: 400 0.82rem/1.6 var(--font-mono); }
+.snippet .copy { position: absolute; top: 8px; right: 8px; }
+.prompt { margin: 28px 0 0; padding: 18px 22px; border-left: 4px solid var(--violet); background: var(--surface);
+  border-radius: 0 var(--radius) var(--radius) 0; color: var(--fg); font-size: var(--step-0); line-height: 1.55; max-width: 72ch; }
+section.alt .prompt { background: var(--bg); }
+.prompt small { display: block; margin-top: 8px; color: var(--muted); font-size: var(--step--1); }
+
 footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px; font-size: var(--step--1); }
 .foot { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
 .foot .brand { color: var(--on-ink); }
@@ -289,6 +303,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
       <nav class="nav-links" aria-label="Primary">
         <a class="optional" href="#features">Features</a>
         <a class="optional" href="#cli">CLI</a>
+        <a class="optional" href="#agents">AI agents</a>
         <a class="optional" href="https://github.com/AMineer/rasternest_app" rel="noopener">GitHub</a>
         <a class="btn btn-violet pill" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.dmg" title="Download RasterNest for macOS (DMG)">Download</a>
       </nav>
@@ -499,7 +514,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
           </div>
           <div class="note">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
-            <p><b>Built for AI agents.</b> Place markup by the text on screen (<code>--step Save</code>), redact emails and tokens by pattern, rebuild whole guides with <code>rnest guide run</code>, or let Claude drive it with <code>rnest mcp</code>. <a href="https://github.com/AMineer/rasternest_app/blob/main/docs/AGENTS.md" rel="noopener">Agent docs</a>.</p>
+            <p><b>Built for AI agents.</b> Place markup by the text on screen (<code>--step Save</code>), redact emails and tokens by pattern, rebuild whole guides with <code>rnest guide run</code>, or let Claude drive it with <code>rnest mcp</code> (<a href="#agents">setup</a>).</p>
           </div>
         </div>
       </div>
@@ -539,6 +554,57 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
       </div>
     </div>
   </section>
+  <section class="block alt" id="agents">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow">AI agents</span>
+        <h2>Let Claude capture, record and annotate</h2>
+        <p><code>rnest mcp</code> is a Model Context Protocol server. Connect it once and Claude can take screenshots, record GIFs, read what&rsquo;s on screen, number the steps and redact personal data for you.</p>
+      </div>
+      <div class="agent-grid">
+        <div class="panel frame">
+          <span class="os-tag">Claude Code</span>
+          <h3>One command</h3>
+          <p>Adds RasterNest for every project. Run <code>/mcp</code> in Claude Code to check it&rsquo;s connected.</p>
+          <div class="copyline"><code><span class="p">$ </span><span class="cmd-mcp">claude mcp add --scope user rasternest -- rnest mcp</span></code><button class="copy" type="button" data-copy=".cmd-mcp">Copy</button></div>
+        </div>
+        <div class="panel frame">
+          <span class="os-tag">Claude Desktop</span>
+          <h3>Add to the config</h3>
+          <p>Open <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (or Settings › Developer › Edit Config, where your version has it), add this inside <code>"mcpServers"</code>, then quit Claude with ⌘Q and reopen it.</p>
+          <div class="snippet"><pre class="cfg-mcp">"rasternest": {
+  "command": "/opt/homebrew/bin/rnest",
+  "args": ["mcp"]
+}</pre><button class="copy" type="button" data-copy=".cfg-mcp">Copy</button></div>
+          <p>Use the path <code>which rnest</code> prints.</p>
+        </div>
+        <div class="panel frame">
+          <span class="os-tag">Before you start</span>
+          <h3>Two things</h3>
+          <ol>
+            <li><b>Install <code>rnest</code>.</b> Homebrew does it for you (see <a href="#install">Install</a>). With the DMG, choose <b>Install Command Line Tool…</b> from the RasterNest menu.</li>
+            <li><b>Allow Screen Recording</b> for the app that runs it: your terminal for Claude Code, Claude for Claude Desktop. macOS asks on the first capture.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="tools" style="margin-top: 28px;" aria-label="Tools Claude gets">
+        <span class="tool-chip">capture</span>
+        <span class="tool-chip">record → GIF</span>
+        <span class="tool-chip">ocr</span>
+        <span class="tool-chip">annotate</span>
+        <span class="tool-chip">combine</span>
+        <span class="tool-chip">export</span>
+        <span class="tool-chip">run_guide</span>
+        <span class="tool-chip">list_windows</span>
+        <span class="tool-chip">open_in_editor</span>
+      </div>
+
+      <p class="prompt">&ldquo;Use RasterNest to capture each step of signing in to our dashboard in Safari, number the buttons to click, redact emails and tokens, and combine the steps into one page.&rdquo;
+        <small>Try a prompt like this. Results land in <code>~/Pictures/RasterNest/agent</code> as PNGs plus editable <code>.rasternest</code> files. <a href="https://github.com/AMineer/rasternest_app/blob/main/docs/AGENTS.md" rel="noopener">Full agent docs</a></small></p>
+    </div>
+  </section>
+
   <section class="block" id="support">
     <div class="wrap">
       <div class="section-head">
