@@ -45,3 +45,23 @@ jobs:
         run: |
           .build/debug/rnest --version
           .build/debug/rnest --help
+
+  windows:
+    name: Windows app + CLI
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Test
+        run: |
+          dotnet test windows/tests/RasterNest.Core.Tests -c Release
+          dotnet test windows/tests/RasterNest.Render.Tests -c Release
+      - name: Build app
+        run: dotnet build windows/src/RasterNest.App -c Release -p:Platform=x64
+      - name: Smoke-test CLI
+        run: |
+          dotnet build windows/src/rnest -c Release
+          dotnet run --project windows/src/rnest -c Release --no-build -- --version
+          dotnet run --project windows/src/rnest -c Release --no-build -- export Tests/Fixtures/mac-sample.rasternest -o "$env:RUNNER_TEMP\sample.png"

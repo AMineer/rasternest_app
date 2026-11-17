@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="RasterNest.App.Editor.EditorWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:skia="using:SkiaSharp.Views.Windows"
+    Title="RasterNest">
+
+    <Grid x:Name="Root">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Menu bar (filled in code: File, Edit, View, Window, Help) -->
+        <MenuBar x:Name="MainMenu" Grid.Row="0" />
+
+        <!-- Toolbar -->
+        <Grid Grid.Row="1" Padding="8,6" ColumnSpacing="8" BorderThickness="0,0,0,1"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource LayerFillColorDefaultBrush}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <!-- Tools scroll sideways when the window is narrow, so Combine / Copy / Export always stay visible. -->
+            <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" HorizontalScrollMode="Enabled"
+                          VerticalScrollMode="Disabled" ZoomMode="Disabled">
+                <StackPanel x:Name="ToolBar" Orientation="Horizontal" Spacing="2" />
+            </ScrollViewer>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2">
+                <AppBarSeparator />
+                <Button x:Name="UndoButton" Click="Undo_Click" ToolTipService.ToolTip="Undo (Ctrl+Z)" Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE7A7;" FontSize="16" />
+                </Button>
+                <Button x:Name="RedoButton" Click="Redo_Click" ToolTipService.ToolTip="Redo (Ctrl+Y)" Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE7A6;" FontSize="16" />
+                </Button>
+                <AppBarSeparator />
+                <DropDownButton x:Name="ZoomButton" Content="100%" MinWidth="76" ToolTipService.ToolTip="Zoom">
+                    <DropDownButton.Flyout>
+                        <MenuFlyout Placement="Bottom">
+                            <MenuFlyoutItem Text="Zoom to Fit" Click="ZoomFit_Click">
+                                <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Modifiers="Control" Key="Number0" /></MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="Actual Size" Click="ZoomActual_Click">
+                                <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Modifiers="Control" Key="Number1" /></MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="Zoom In" Click="ZoomIn_Click">
+                                <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Modifiers="Control" Key="Add" /></MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="Zoom Out" Click="ZoomOut_Click">
+                                <MenuFlyoutItem.KeyboardAccelerators><KeyboardAccelerator Modifiers="Control" Key="Subtract" /></MenuFlyoutItem.KeyboardAccelerators>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                <ToggleButton x:Name="CombineToggle" Click="Combine_Click" ToolTipService.ToolTip="Combine captures into one image">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xF0E2;" FontSize="14" /><TextBlock Text="Combine" /></StackPanel>
+                </ToggleButton>
+                <Button Click="Copy_Click" ToolTipService.ToolTip="Copy the finished image (Ctrl+C)">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8C8;" FontSize="14" /><TextBlock Text="Copy" /></StackPanel>
+                </Button>
+                <Button Style="{StaticResource AccentButtonStyle}" Click="Export_Click" ToolTipService.ToolTip="Save a copy as PNG, JPEG, PDF or .rasternest (Ctrl+Shift+S)">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xEDE1;" FontSize="14" /><TextBlock Text="Export…" /></StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <Grid x:Name="Panels" Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="StripColumn" Width="132" />
+                <ColumnDefinition x:Name="CombineColumn" Width="0" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="InspectorColumn" Width="272" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Capture strip -->
+            <Grid BorderThickness="0,0,1,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Captures" Margin="10,8,10,4" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                <ListView x:Name="Strip" Grid.Row="1" SelectionMode="Single" SelectionChanged="Strip_SelectionChanged"
+                          CanDragItems="True" DragItemsStarting="Strip_DragItemsStarting" Padding="4,0" />
+            </Grid>
+
+            <!-- Combine pane (shown by the Combine button) -->
+            <Border x:Name="CombineHost" Grid.Column="1" Visibility="Collapsed" BorderThickness="0,0,1,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" />
+
+            <!-- Canvas -->
+            <ScrollViewer x:Name="Scroller" Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                          ZoomMode="Disabled" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                          SizeChanged="Scroller_SizeChanged" PointerWheelChanged="Scroller_PointerWheelChanged">
+                <Grid x:Name="CanvasHost" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24"
+                      AllowDrop="True" DragOver="Canvas_DragOver" Drop="Canvas_Drop">
+                    <skia:SKXamlCanvas x:Name="Canvas" PaintSurface="Canvas_PaintSurface"
+                                       PointerPressed="Canvas_PointerPressed" PointerMoved="Canvas_PointerMoved"
+                                       PointerReleased="Canvas_PointerReleased" RightTapped="Canvas_RightTapped"
+                                       DoubleTapped="Canvas_DoubleTapped" />
+                    <Canvas x:Name="TextLayer" IsHitTestVisible="True" />
+                </Grid>
+            </ScrollViewer>
+
+            <!-- Inspector -->
+            <ScrollViewer Grid.Column="3" BorderThickness="1,0,0,0" HorizontalScrollBarVisibility="Disabled" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                          Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <StackPanel x:Name="Inspector" Padding="14" Spacing="10" MinWidth="200" />
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Status bar -->
+        <Grid Grid.Row="3" Padding="10,4" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <TextBlock x:Name="Status" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+        </Grid>
+    </Grid>
+</Window>
