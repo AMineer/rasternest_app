@@ -132,6 +132,7 @@ public sealed partial class EditorWindow : Window
         var fileMenu = Menu("File",
             Item("Capture Area or Window", () => app?.CaptureArea(), Hot(s.CaptureHotKey), "\uF7ED"),
             Item("Capture Full Screen", () => app?.CaptureFullScreen(), Hot(s.FullScreenHotKey), "\uE740"),
+            Item("Scrolling Capture", () => app?.ScrollingCapture(), Hot(s.ScrollingHotKey), "\uEC8F"),
             record,
             Item("Grab Text", () => app?.GrabText(), Hot(s.TextHotKey), "\uE8D2"),
             delay,
@@ -177,6 +178,8 @@ public sealed partial class EditorWindow : Window
             Item("RasterNest Website", () => App.OpenUrl("https://rasternest.app")),
             Item("Command Line and AI Agents", () => App.OpenUrl("https://rasternest.app/#agents")),
             Item("Report a Problem", () => App.OpenUrl("https://github.com/AMineer/rasternest_app/issues")),
+            Item("Install Command Line Tool…", SettingsWindow.ShowShared),
+            Item("Set Up Claude…", SettingsWindow.ShowShared),
             Sep(),
             Item("Support RasterNest…", () => App.OpenUrl("https://rasternest.app/#support")),
             Item($"About RasterNest {RasterNestInfo.Version}", () => App.OpenUrl("https://rasternest.app"))));
@@ -224,12 +227,8 @@ public sealed partial class EditorWindow : Window
         SaveIfNeeded();
         FinishEditing();
         CaptureLibrary.Item target = next;
-        if (target.IsVideo)
-        {
-            // Recordings open in the system player until the Windows video pane lands.
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target.VideoPath!) { UseShellExecute = true });
-            return;
-        }
+        if (target.IsVideo) { OpenVideo(target); return; }
+        ShowVideo(false);
         (SKBitmap Image, double Scale, List<Annotation> Annotations, CanvasEffects Effects) loaded;
         try { loaded = CaptureLibrary.Shared.Load(target); }
         catch (Exception e)
@@ -254,6 +253,34 @@ public sealed partial class EditorWindow : Window
         UpdateChrome();
     }
 
+    // MARK: recordings
+
+    private VideoPane? videoPane;
+
+    private void OpenVideo(CaptureLibrary.Item recording)
+    {
+        model?.Dispose();
+        model = null;
+        item = recording;
+        videoPane ??= new VideoPane(() => WinRT.Interop.WindowNative.GetWindowHandle(this), r => { item = null; Open(r); });
+        ShowVideo(true);
+        videoPane.Load(recording);
+        Title = $"{recording.Name} — RasterNest";
+        SelectInStrip(recording.Id);
+        BuildInspector();
+        Status.Text = "Recording · play it, set Start here / End here to trim, then Export GIF or Save Trimmed Video.";
+    }
+
+    private void ShowVideo(bool visible)
+    {
+        if (!visible) videoPane?.Stop();
+        if (visible && VideoHost.Child == null) VideoHost.Child = videoPane;
+        VideoHost.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        Scroller.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
+        ToolBar.IsHitTestVisible = !visible;
+        ToolBar.Opacity = visible ? 0.4 : 1;
+    }
+
     private void SaveIfNeeded()
     {
         if (model is not { IsDirty: true } || item == null) return;
@@ -264,7 +291,11 @@ public sealed partial class EditorWindow : Window
             CaptureLibrary.Shared.Save(item, model.MakeDocument(), rendered);
             model.MarkSaved();
         }
-        catch (Exception e) { Status.Text = $"Couldn't save: {e.Message}"; }
+        catch (Exception e)
+        {
+            Status.Text = $"Couldn't save: {CaptureLibrary.Explain(e, Path.GetDirectoryName(item.DocumentPath) ?? "")}";
+            Log.Write($"save failed: {e}");
+        }
     }
 
     private void UpdateChrome()
@@ -771,6 +802,11 @@ public sealed partial class EditorWindow : Window
     private void BuildInspector()
     {
         Inspector.Children.Clear();
+        if (VideoHost.Visibility == Visibility.Visible && videoPane != null)
+        {
+            Inspector.Children.Add(videoPane.Inspector);
+            return;
+        }
         if (model == null) return;
         if (model.Tool == Tool.Crop)
         {
@@ -990,7 +1026,18 @@ public sealed partial class EditorWindow : Window
             var reveal = new MenuFlyoutItem { Text = "Show in File Explorer" };
             reveal.Click += (_, _) => System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{i.SharePath}\"");
             var delete = new MenuFlyoutItem { Text = "Move to Recycle Bin" };
-            delete.Click += (_, _) => { if (item?.Id == i.Id) { model?.Dispose(); model = null; item = null; Canvas.Invalidate(); } CaptureLibrary.Shared.Delete(i); };
+            delete.Click += (_, _) =>
+            {
+                if (item?.Id == i.Id)
+                {
+                    videoPane?.Stop();
+                    model?.Dispose();
+                    model = null;
+                    item = null;
+                    Canvas.Invalidate();
+                }
+                CaptureLibrary.Shared.Delete(i);
+            };
             if (!i.IsVideo)
             {
                 var combine = new MenuFlyoutItem { Text = "Add to Combine", Icon = new FontIcon { Glyph = "\uF0E2" } };

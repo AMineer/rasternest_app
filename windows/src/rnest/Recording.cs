@@ -167,26 +167,7 @@ public static class Recording
     }
 
     /// <summary>Converts a video to a looping GIF.</summary>
-    public static async Task ConvertToGif(string video, string gif, double fps, int maxWidth)
-    {
-        var frames = await VideoFrames.OpenAsync(video);
-        var f = Math.Clamp(fps, 1, 50);
-        var delayCs = (int)Math.Round(100 / f);
-        var (vw, vh) = frames.Size;
-        int w = maxWidth <= 0 || maxWidth >= vw ? vw : maxWidth;
-        int h = Math.Max(1, (int)Math.Round(vh * (double)w / vw));
-        var count = Math.Max(1, (int)Math.Floor(frames.Duration.TotalSeconds / (delayCs / 100.0)));
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(gif))!);
-        await using var file = File.Create(gif);
-        using var encoder = new GifEncoder(file, w, h);
-        for (var i = 0; i < count; i++)
-        {
-            using var frame = await frames.FrameAsync(TimeSpan.FromSeconds(i * delayCs / 100.0), w, h);
-            using var sized = frame.Width == w && frame.Height == h ? frame.Copy()
-                : frame.Resize(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul), new SKSamplingOptions(SKCubicResampler.Mitchell));
-            encoder.AddFrame(sized, delayCs);
-        }
-    }
+    public static Task ConvertToGif(string video, string gif, double fps, int maxWidth) => GifExport.Convert(video, gif, fps, maxWidth);
 
     /// <summary>A frame from the middle of a recording (or the first GIF frame), as a small JPEG preview.</summary>
     public static async Task<byte[]?> Preview(string? mp4, string? gif)

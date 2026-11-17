@@ -44,6 +44,14 @@ internal sealed class SettingsWindow : Window
     private void Build()
     {
         panel.Children.Clear();
+        Section("General");
+        var startup = new ToggleSwitch { Header = "Start RasterNest when you sign in", IsEnabled = false };
+        var startupNote = new TextBlock { TextWrapping = TextWrapping.Wrap, Opacity = 0.6, FontSize = 12, Margin = new Thickness(0, -8, 0, 0),
+                                          Text = "So Print Screen and the tray icon are ready after a restart." };
+        panel.Children.Add(startup);
+        panel.Children.Add(startupNote);
+        _ = InitStartupToggle(startup, startupNote);
+
         Section("After capturing");
         Toggle("Open the editor", s.OpenEditor, v => s.OpenEditor = v);
         Toggle("Copy to the clipboard", s.CopyToClipboard, v => s.CopyToClipboard = v);
@@ -52,6 +60,23 @@ internal sealed class SettingsWindow : Window
         Toggle("Include the mouse pointer", s.CaptureCursor, v => s.CaptureCursor = v);
 
         Section("Captures folder");
+        if (Library.CaptureLibrary.Shared.BlockedFolder is { } blocked)
+        {
+            var allow = new Button { Content = "Open ransomware protection settings" };
+            allow.Click += async (_, _) =>
+            {
+                if (!await global::Windows.System.Launcher.LaunchUriAsync(new Uri("windowsdefender://ransomwareprotection")))
+                    await global::Windows.System.Launcher.LaunchUriAsync(new Uri("windowsdefender:"));
+            };
+            panel.Children.Add(new InfoBar
+            {
+                IsOpen = true, IsClosable = false, Severity = InfoBarSeverity.Warning, Title = "Windows is blocking this folder",
+                Message = $"Controlled folder access stopped RasterNest saving to {blocked}, so new captures go to " +
+                          $"{Library.CaptureLibrary.FallbackFolder} for now. Allow RasterNest under " +
+                          "\"Allow an app through Controlled folder access\", or choose another folder below.",
+                ActionButton = allow,
+            });
+        }
         var folder = new TextBlock { Text = s.SaveFolder, TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
         var change = new Button { Content = "Change…" };
         change.Click += async (_, _) =>
@@ -82,6 +107,7 @@ internal sealed class SettingsWindow : Window
             });
         Shortcut("Capture area or window", s.CaptureHotKey, k => s.CaptureHotKey = k);
         Shortcut("Capture full screen", s.FullScreenHotKey, k => s.FullScreenHotKey = k);
+        Shortcut("Scrolling capture", s.ScrollingHotKey, k => s.ScrollingHotKey = k);
         Shortcut("Record screen", s.RecordHotKey, k => s.RecordHotKey = k);
         Shortcut("Grab text", s.TextHotKey, k => s.TextHotKey = k);
 
@@ -89,12 +115,79 @@ internal sealed class SettingsWindow : Window
         Toggle("Highlight clicks", s.ShowClicks, v => s.ShowClicks = v, "Coming to Windows soon.");
         Toggle("Show keystrokes", s.ShowKeystrokes, v => s.ShowKeystrokes = v, "Coming to Windows soon.");
 
-        Section("Command line");
+        Section("Command line and AI agents");
         panel.Children.Add(new TextBlock
         {
             TextWrapping = TextWrapping.Wrap, Opacity = 0.8,
-            Text = "rnest captures, annotates and records from scripts and AI agents (rnest mcp). Install it with: winget install A2M4.rnest",
+            Text = "rnest captures, annotates and records from scripts, and its MCP server lets Claude and other AI agents use RasterNest.",
         });
+        var cliStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = 0.7 };
+        void ShowCliStatus() => cliStatus.Text = Shell.CommandLineTool.Find() is { } found
+            ? $"rnest is installed: {found}"
+            : "rnest isn't installed yet.";
+        ShowCliStatus();
+        panel.Children.Add(cliStatus);
+        var install = new Button { Content = Shell.CommandLineTool.Find() == null ? "Install Command Line Tool" : "Update Command Line Tool" };
+        install.Click += async (_, _) =>
+        {
+            install.IsEnabled = false;
+            cliStatus.Text = "Downloading rnest…";
+            try
+            {
+                var path = await Shell.CommandLineTool.InstallAsync();
+                cliStatus.Text = $"Installed {path}. Open a new terminal and run: rnest --help";
+                install.Content = "Update Command Line Tool";
+            }
+            catch (Exception e) { cliStatus.Text = $"Couldn't install rnest: {e.Message}"; }
+            finally { install.IsEnabled = true; }
+        };
+        var claudeDesktop = new Button { Content = "Add to Claude Desktop" };
+        var claudeStatus = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = 0.7 };
+        claudeDesktop.Click += async (_, _) =>
+        {
+            try
+            {
+                var rnest = Shell.CommandLineTool.Find();
+                if (rnest == null)
+                {
+                    claudeStatus.Text = "Installing rnest first…";
+                    rnest = await Shell.CommandLineTool.InstallAsync();
+                    ShowCliStatus();
+                }
+                if (Shell.CommandLineTool.ClaudeDesktopConfigs().Count == 0)
+                {
+                    claudeStatus.Text = "Claude Desktop doesn't seem to be installed for this account. Install it from claude.ai/download, open it once, then try again.";
+                    return;
+                }
+                var changed = Shell.CommandLineTool.AddToClaudeDesktop(rnest);
+                claudeStatus.Text = $"Added RasterNest to Claude Desktop ({string.Join(", ", changed)}). Quit Claude Desktop completely (tray icon › Quit) and reopen it.";
+            }
+            catch (Exception e) { claudeStatus.Text = $"Couldn't update Claude Desktop: {e.Message}"; }
+        };
+        var claudeCode = new Button { Content = "Copy Claude Code command" };
+        claudeCode.Click += (_, _) =>
+        {
+            RasterNest.Windows.Clipboard.CopyText(Shell.CommandLineTool.ClaudeCodeCommand);
+            claudeStatus.Text = $"Copied. Paste it in a terminal: {Shell.CommandLineTool.ClaudeCodeCommand}";
+        };
+        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { install } });
+        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { claudeDesktop, claudeCode } });
+        panel.Children.Add(claudeStatus);
+    }
+
+    private static async Task InitStartupToggle(ToggleSwitch toggle, TextBlock note)
+    {
+        try { toggle.IsOn = await Shell.StartAtSignIn.IsEnabledAsync(); } catch { }
+        toggle.IsEnabled = true;
+        toggle.Toggled += async (_, _) =>
+        {
+            var problem = await Shell.StartAtSignIn.SetAsync(toggle.IsOn);
+            if (problem != null)
+            {
+                note.Text = problem;
+                toggle.IsOn = await Shell.StartAtSignIn.IsEnabledAsync();
+            }
+        };
     }
 
     private void Section(string title) =>
