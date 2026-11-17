@@ -107,6 +107,9 @@
                 </Grid>
             </ScrollViewer>
 
+            <!-- Recordings play here instead of the canvas -->
+            <Border x:Name="VideoHost" Grid.Column="2" Visibility="Collapsed" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
+
             <!-- Inspector -->
             <ScrollViewer Grid.Column="3" BorderThickness="1,0,0,0" HorizontalScrollBarVisibility="Disabled" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                           Background="{ThemeResource LayerFillColorDefaultBrush}">

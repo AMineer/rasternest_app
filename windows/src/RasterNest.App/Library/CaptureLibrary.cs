@@ -33,12 +33,61 @@ public sealed class CaptureLibrary
 
     public string Folder => AppSettings.Shared.SaveFolder;
 
+    /// <summary>
+    /// Where captures go when Windows refuses writes to <see cref="Folder"/> (Controlled folder access, permissions),
+    /// so a capture is never lost. Listed in the strip alongside the normal folder.
+    /// </summary>
+    public static string FallbackFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RasterNest", "Captures");
+
+    /// <summary>The captures folder Windows last refused to write to (null when saving works).</summary>
+    public string? BlockedFolder { get; private set; }
+
+    /// <summary>Raised the first time a save is refused, with the folder that was blocked.</summary>
+    public event Action<string>? SaveBlocked;
+
+    /// <summary>True for "access denied" failures (Controlled folder access reports itself this way).</summary>
+    public static bool IsAccessDenied(Exception e) =>
+        e is UnauthorizedAccessException || (e is IOException io && (io.HResult & 0xFFFF) == 5);
+
+    /// <summary>A message for a failed save that says what to do about it.</summary>
+    public static string Explain(Exception e, string folder) => IsAccessDenied(e)
+        ? $"Windows blocked RasterNest from saving to {folder}. If Controlled folder access is on, allow RasterNest in " +
+          "Windows Security › Virus & threat protection › Manage ransomware protection, or choose another captures folder in Settings."
+        : e.Message;
+
+    /// <summary>Runs a save into the captures folder; if Windows refuses, runs it again into the fallback folder.</summary>
+    private T WithFallback<T>(Func<string, T> save)
+    {
+        try
+        {
+            Directory.CreateDirectory(Folder);
+            var result = save(Folder);
+            RasterNest.App.Log.Write($"saved in {Folder}");
+            BlockedFolder = null;
+            return result;
+        }
+        catch (Exception e) when (IsAccessDenied(e) && !string.Equals(Folder, FallbackFolder, StringComparison.OrdinalIgnoreCase))
+        {
+            var first = BlockedFolder == null;
+            BlockedFolder = Folder;
+            RasterNest.App.Log.Write($"save blocked in {Folder}: {e.Message}; using {FallbackFolder}");
+            Directory.CreateDirectory(FallbackFolder);
+            var result = save(FallbackFolder);
+            if (first) SaveBlocked?.Invoke(Folder);
+            return result;
+        }
+    }
+
     public void Reload()
     {
         var byBase = new Dictionary<string, Item>(StringComparer.OrdinalIgnoreCase);
-        if (Directory.Exists(Folder))
+        foreach (var folder in new[] { Folder, FallbackFolder }.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            foreach (var path in Directory.EnumerateFiles(Folder))
+            if (!Directory.Exists(folder)) continue;
+            IEnumerable<string> files;
+            try { files = Directory.EnumerateFiles(folder).ToList(); } catch { continue; }
+            foreach (var path in files)
             {
                 var ext = Path.GetExtension(path).ToLowerInvariant();
                 var isDoc = ext == "." + NestDocument.FileExtension;
@@ -62,26 +111,22 @@ public sealed class CaptureLibrary
 
     public Item? Find(string id) => Items.FirstOrDefault(i => string.Equals(i.Id, id, StringComparison.OrdinalIgnoreCase));
 
-    private string UniqueBase(string name)
+    private static string UniqueBase(string folder, string name)
     {
         var safe = string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '-' : c));
-        var basePath = Path.Combine(Folder, safe);
+        var basePath = Path.Combine(folder, safe);
         var n = 2;
         while (File.Exists(basePath + "." + NestDocument.FileExtension) || File.Exists(basePath + ".png") || File.Exists(basePath + ".mp4"))
-            basePath = Path.Combine(Folder, $"{safe} {n++}");
+            basePath = Path.Combine(folder, $"{safe} {n++}");
         return basePath;
     }
 
     /// <summary>Stores a fresh capture and returns its item (newest first in the strip).</summary>
     public Item AddCapture(SKBitmap image, double scale, IReadOnlyList<Annotation>? annotations = null, string? name = null)
     {
-        Directory.CreateDirectory(Folder);
-        var basePath = UniqueBase(name ?? CaptureNaming.TimestampedName());
         var defaults = AppSettings.Shared.DefaultEffects(scale);
         annotations ??= [];
         var doc = ImageCodec.MakeDocument(image, scale, annotations, defaults.IsEmpty ? null : defaults);
-        var docPath = basePath + "." + NestDocument.FileExtension;
-        doc.Save(docPath);
         // What the capture looks like: the frame and any layers burned in.
         var rendered = doc.ImagePng;
         if (!defaults.IsEmpty || annotations.Count > 0)
@@ -89,13 +134,20 @@ public sealed class CaptureLibrary
             using var flat = new AnnotationRenderer(scale).Flatten(image, annotations, defaults);
             rendered = ImageCodec.Encode(flat, ExportFormat.Png, scale);
         }
-        string? pngPath = null;
-        if (AppSettings.Shared.KeepPng)
+        var stem = name ?? CaptureNaming.TimestampedName();
+        var item = WithFallback(folder =>
         {
-            pngPath = basePath + ".png";
-            File.WriteAllBytes(pngPath, rendered);
-        }
-        var item = new Item(basePath, Path.GetFileName(basePath), docPath, pngPath, null, DateTime.Now);
+            var basePath = UniqueBase(folder, stem);
+            var docPath = basePath + "." + NestDocument.FileExtension;
+            doc.Save(docPath);
+            string? pngPath = null;
+            if (AppSettings.Shared.KeepPng)
+            {
+                pngPath = basePath + ".png";
+                File.WriteAllBytes(pngPath, rendered);
+            }
+            return new Item(basePath, Path.GetFileName(basePath), docPath, pngPath, null, DateTime.Now);
+        });
         Items.Insert(externals.Count, item);
         thumbnails[item.Id] = MakeThumbnail(rendered);
         Changed?.Invoke();
@@ -105,11 +157,15 @@ public sealed class CaptureLibrary
     /// <summary>Moves a finished recording into the captures folder.</summary>
     public Item AddRecording(string tempPath, string? name = null)
     {
-        Directory.CreateDirectory(Folder);
-        var basePath = UniqueBase(name ?? CaptureNaming.TimestampedName());
-        var path = basePath + Path.GetExtension(tempPath);
-        File.Move(tempPath, path);
-        var item = new Item(basePath, Path.GetFileName(basePath), basePath + "." + NestDocument.FileExtension, null, path, DateTime.Now);
+        var stem = name ?? CaptureNaming.TimestampedName();
+        var item = WithFallback(folder =>
+        {
+            var basePath = UniqueBase(folder, stem);
+            var path = basePath + Path.GetExtension(tempPath);
+            File.Copy(tempPath, path);
+            return new Item(basePath, Path.GetFileName(basePath), basePath + "." + NestDocument.FileExtension, null, path, DateTime.Now);
+        });
+        try { File.Delete(tempPath); } catch { }
         Items.Insert(externals.Count, item);
         Changed?.Invoke();
         return item;
@@ -171,9 +227,17 @@ public sealed class CaptureLibrary
     }
 
     /// <summary>A small PNG (long side 240 px) for the strip and menus.</summary>
+    private readonly HashSet<string> pendingVideoThumbnails = [];
+
     public byte[]? Thumbnail(Item item)
     {
         if (thumbnails.TryGetValue(item.Id, out var t)) return t;
+        if (item.VideoPath is { } video)
+        {
+            // Read a frame in the background, then refresh the strip.
+            if (pendingVideoThumbnails.Add(item.Id)) _ = VideoThumbnail(item.Id, video);
+            return null;
+        }
         try
         {
             byte[]? source = null;
@@ -194,6 +258,22 @@ public sealed class CaptureLibrary
             return thumbnails[item.Id] = MakeThumbnail(source);
         }
         catch { return null; }
+    }
+
+    private async Task VideoThumbnail(string id, string video)
+    {
+        try
+        {
+            var frames = await RasterNest.Windows.VideoFrames.OpenAsync(video);
+            var (w, h) = frames.Size;
+            var k = Math.Min(1, 240.0 / Math.Max(w, h));
+            using var frame = await frames.FrameAsync(TimeSpan.FromMilliseconds(Math.Min(500, frames.Duration.TotalMilliseconds / 2)),
+                                                      Math.Max(1, (int)(w * k)), Math.Max(1, (int)(h * k)));
+            using var image = SKImage.FromBitmap(frame);
+            thumbnails[id] = image.Encode(SKEncodedImageFormat.Png, 100).ToArray();
+            Changed?.Invoke();
+        }
+        catch { /* no thumbnail; the name still shows */ }
     }
 
     private static byte[] MakeThumbnail(byte[] png)

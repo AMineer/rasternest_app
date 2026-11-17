@@ -12,6 +12,12 @@ namespace RasterNest.App;
 /// </summary>
 public sealed class AppSettings
 {
+    // Must come before Shared: static fields initialise in order, and Load() needs these options.
+    private static readonly JsonSerializerOptions Json = new(RasterNestJson.Pretty)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+    };
+
     public static AppSettings Shared { get; } = Load();
     public static event Action? Changed;
 
@@ -53,18 +59,13 @@ public sealed class AppSettings
 
     private static string FilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RasterNest", "settings.json");
 
-    private static readonly JsonSerializerOptions Json = new(RasterNestJson.Pretty)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-    };
-
     private static AppSettings Load()
     {
         try
         {
             if (File.Exists(FilePath)) return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), Json) ?? new AppSettings();
         }
-        catch { /* a damaged file falls back to defaults */ }
+        catch (Exception e) { Log.Write($"settings unreadable, using defaults: {e.Message}"); }
         return new AppSettings();
     }
 

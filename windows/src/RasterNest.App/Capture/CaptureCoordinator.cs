@@ -82,7 +82,11 @@ internal sealed class CaptureCoordinator(Action<string, string> notify)
                 }
             }
         }
-        catch (Exception e) { notify("Couldn't capture", e.Message); }
+        catch (Exception e)
+        {
+            Log.Write($"capture failed: {e}");
+            notify("Couldn't capture", CaptureLibrary.Explain(e, CaptureLibrary.Shared.Folder));
+        }
         finally
         {
             overlay?.Dispose();
@@ -105,7 +109,11 @@ internal sealed class CaptureCoordinator(Action<string, string> notify)
             var shot = ScreenCapture.CaptureDisplay(Math.Max(0, index), AppSettings.Shared.CaptureCursor);
             using (shot.Bitmap) await Deliver(shot.Bitmap, shot.Scale, Mode.Image);
         }
-        catch (Exception e) { notify("Couldn't capture", e.Message); }
+        catch (Exception e)
+        {
+            Log.Write($"full-screen capture failed: {e}");
+            notify("Couldn't capture", CaptureLibrary.Explain(e, CaptureLibrary.Shared.Folder));
+        }
         finally
         {
             busy = false;
@@ -134,6 +142,88 @@ internal sealed class CaptureCoordinator(Action<string, string> notify)
         }
         if (settings.OpenEditor) EditorWindow.Show(item);
         else notify(settings.CopyToClipboard ? "Copied to clipboard" : "Saved", item.Name);
+    }
+
+    // MARK: scrolling capture
+
+    /// <summary>Pick the area that scrolls, then scroll; Done stitches everything into one tall image.</summary>
+    public async void StartScrolling(bool hideWindows = false, RectD? area = null)
+    {
+        // Triggering it again while scrolling finishes the capture (like Done).
+        if (scrolling != null) { scrolling.Finish(); return; }
+        if (busy) return;
+        busy = true;
+        try
+        {
+            if (hideWindows) await Shell.WindowHider.HideAsync();
+            await Task.Delay(150);
+            if (area is { } given)
+            {
+                // rasternest://scrolling?rect=x,y,w,h skips the overlay.
+                var scale = ScreenCapture.Displays().FirstOrDefault(d => given.MidX >= d.X && given.MidX < d.X + d.Width)?.Scale ?? 1;
+                await RunScrolling(given, scale);
+                return;
+            }
+            var overlay = new SelectionOverlay("Drag over the part that scrolls, or click a window  ·  Esc to cancel", async result =>
+            {
+                var o = current;
+                current = null;
+                try
+                {
+                    var (rect, scale) = result switch
+                    {
+                        SelectionOverlay.Result.Region r => (new RectD(r.Rect.X, r.Rect.Y, r.Rect.W, r.Rect.H), o!.ScaleAt(r.Rect)),
+                        SelectionOverlay.Result.Window w => (new RectD(w.Visible.X, w.Visible.Y, w.Visible.W, w.Visible.H), o!.ScaleAt(w.Visible)),
+                        SelectionOverlay.Result.Display d => (new RectD(d.Info.X, d.Info.Y, d.Info.Width, d.Info.Height), d.Info.Scale),
+                        _ => (RectD.Null, 1.0),
+                    };
+                    o?.Dispose();
+                    if (rect.IsNull) { busy = false; Shell.WindowHider.Restore(); return; }
+                    await RunScrolling(rect, scale);
+                    return;
+                }
+                catch (Exception e)
+                {
+                    Log.Write($"scrolling capture failed: {e}");
+                    notify("Couldn't finish the scrolling capture", CaptureLibrary.Explain(e, CaptureLibrary.Shared.Folder));
+                }
+                busy = false;
+                Shell.WindowHider.Restore();
+            });
+            current = overlay;
+            overlay.Show();
+        }
+        catch (Exception e)
+        {
+            busy = false;
+            Shell.WindowHider.Restore();
+            notify("Couldn't capture", e.Message);
+        }
+    }
+
+    private ScrollingCapture? scrolling;
+
+    private async Task RunScrolling(RectD rect, double scale)
+    {
+        try
+        {
+            if (rect.Width < 40 || rect.Height < 60) { notify("Pick a larger area", "Choose the part of the window that scrolls."); return; }
+            scrolling = new ScrollingCapture(rect, scale);
+            using var stitched = await scrolling.RunAsync();
+            scrolling = null;
+            if (stitched != null) await Deliver(stitched, scale, Mode.Image);
+        }
+        catch (Exception e)
+        {
+            Log.Write($"scrolling capture failed: {e}");
+            notify("Couldn't finish the scrolling capture", CaptureLibrary.Explain(e, CaptureLibrary.Shared.Folder));
+        }
+        finally
+        {
+            scrolling = null;
+            busy = false;
+            Shell.WindowHider.Restore();
+        }
     }
 
     // MARK: recording
@@ -191,7 +281,9 @@ internal sealed class CaptureCoordinator(Action<string, string> notify)
             recorder = new ScreenRecorder(target, new RecorderOptions(30, true));
             await recorder.StartAsync(recordingPath);
             RecordingChanged?.Invoke();
-            notify("Recording", "Choose Stop Recording in the tray menu, or press the record shortcut again.");
+            // Stop button on screen (left out of the recording itself); the tray and shortcut still work too.
+            bar = new CaptureBar("Recording", "Stop", () => _ = StopRecording());
+            bar.Show();
         }
         catch (Exception e)
         {
@@ -203,18 +295,21 @@ internal sealed class CaptureCoordinator(Action<string, string> notify)
     }
 
     public event Action? RecordingChanged;
+    private CaptureBar? bar;
 
     public async Task StopRecording()
     {
         if (recorder is not { } r) return;
         recorder = null;
+        bar?.Close();
+        bar = null;
         try
         {
             await r.StopAsync();
             await r.DisposeAsync();
             var item = CaptureLibrary.Shared.AddRecording(recordingPath!);
-            notify("Recording saved", item.Name);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(item.VideoPath!) { UseShellExecute = true });
+            // Opens in the editor's video pane (play, trim, export GIF).
+            EditorWindow.Show(item);
         }
         catch (Exception e) { notify("Couldn't finish the recording", e.Message); }
         finally

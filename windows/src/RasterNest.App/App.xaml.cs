@@ -45,8 +45,11 @@ public partial class App : Application
         RegisterHotKeys();
         AppSettings.Changed += RegisterHotKeys;
         CaptureLibrary.Shared.Reload();
+        CaptureLibrary.Shared.SaveBlocked += folder => tray.Notify("Windows blocked saving your capture",
+            $"It's saved in RasterNest's own folder instead. To save to {Path.GetFileName(folder)}, allow RasterNest in Windows Security " +
+            "› Ransomware protection, or choose another folder in RasterNest Settings.");
 
-        Log.Write("launched: tray and shortcuts ready");
+        Log.Write($"launched: tray and shortcuts ready; captures folder {AppSettings.Shared.SaveFolder}");
         AppInstance.GetCurrent().Activated += (_, e) =>
         {
             Log.Write($"activated (redirected): {e.Kind}");
@@ -89,6 +92,13 @@ public partial class App : Application
         catch (Exception e) { tray?.Notify("Couldn't open that", e.Message); }
     }
 
+    private static RasterNest.Core.RectD? ParseRect(string? text)
+    {
+        var parts = text?.Split(',').Select(p => double.TryParse(p, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : double.NaN).ToArray();
+        return parts is { Length: 4 } && parts.All(double.IsFinite) && parts[2] > 0 && parts[3] > 0
+            ? new RasterNest.Core.RectD(parts[0], parts[1], parts[2], parts[3]) : null;
+    }
+
     private static IEnumerable<string> SplitArguments(string line)
     {
         var current = new System.Text.StringBuilder();
@@ -116,6 +126,7 @@ public partial class App : Application
             case "fullscreen": capture?.CaptureFullScreen(); break;
             case "record": capture?.ToggleRecording(); break;
             case "text": capture?.StartInteractive(CaptureCoordinator.Mode.Text); break;
+            case "scrolling": capture?.StartScrolling(area: ParseRect(query["rect"])); break;
             case "open" when query["path"] is { } path: OpenPath(path); break;
         }
     }
@@ -123,9 +134,16 @@ public partial class App : Application
     internal static void OpenPath(string path)
     {
         var library = CaptureLibrary.Shared;
-        var item = path.EndsWith("." + NestDocument.FileExtension, StringComparison.OrdinalIgnoreCase)
-            ? library.ItemForDocument(path)
-            : library.ImportImage(path);
+        CaptureLibrary.Item item;
+        if (path.EndsWith("." + NestDocument.FileExtension, StringComparison.OrdinalIgnoreCase)) item = library.ItemForDocument(path);
+        else if (CaptureLibrary.VideoExtensions.Contains(Path.GetExtension(path).ToLowerInvariant()))
+        {
+            // A copy goes into the library, so trimming never touches the original.
+            var copy = Path.Combine(Path.GetTempPath(), $"rasternest-import-{Guid.NewGuid():N}{Path.GetExtension(path)}");
+            File.Copy(path, copy);
+            item = library.AddRecording(copy, Path.GetFileNameWithoutExtension(path));
+        }
+        else item = library.ImportImage(path);
         EditorWindow.Show(item);
     }
 
@@ -143,6 +161,7 @@ public partial class App : Application
         Reg(2, s.FullScreenHotKey, () => capture.CaptureFullScreen(), "Full screen");
         Reg(3, s.RecordHotKey, () => capture.ToggleRecording(), "Record");
         Reg(4, s.TextHotKey, () => capture.StartInteractive(CaptureCoordinator.Mode.Text), "Grab text");
+        Reg(5, s.ScrollingHotKey, () => capture.StartScrolling(), "Scrolling capture");
         FailedHotKeys = failed;
         Log.Write($"hotkeys registered; failed: {string.Join(", ", failed)}");
         if (failed.Count > 0)
@@ -157,6 +176,7 @@ public partial class App : Application
     internal void CaptureFullScreen() => capture?.CaptureFullScreen(hideWindows: true);
     internal void ToggleRecording() => capture?.ToggleRecording(hideWindows: true);
     internal void GrabText() => capture?.StartInteractive(CaptureCoordinator.Mode.Text, hideWindows: true);
+    internal void ScrollingCapture() => capture?.StartScrolling(hideWindows: true);
     internal bool IsRecording => capture?.IsRecording == true;
     internal static void OpenUrl(string url) => Launch(url);
 
@@ -179,6 +199,7 @@ public partial class App : Application
         [
             new("Capture Area or Window", () => CaptureArea(), Shortcut: s.CaptureHotKey?.ToString()),
             new("Capture Full Screen", CaptureFullScreen, Shortcut: s.FullScreenHotKey?.ToString()),
+            new("Scrolling Capture", ScrollingCapture, Shortcut: s.ScrollingHotKey?.ToString()),
             new(c.IsRecording ? "Stop Recording" : "Record Screen", ToggleRecording, Shortcut: s.RecordHotKey?.ToString()),
             new("Grab Text", GrabText, Shortcut: s.TextHotKey?.ToString()),
             new("Capture After Delay", Children:
@@ -228,7 +249,7 @@ public partial class App : Application
     internal async void OpenFile()
     {
         var picker = new global::Windows.Storage.Pickers.FileOpenPicker();
-        foreach (var ext in new[] { ".rasternest", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp" }) picker.FileTypeFilter.Add(ext);
+        foreach (var ext in new[] { ".rasternest", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".mp4", ".mov" }) picker.FileTypeFilter.Add(ext);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, tray!.Handle);
         var file = await picker.PickSingleFileAsync();
         if (file != null) OpenPath(file.Path);
