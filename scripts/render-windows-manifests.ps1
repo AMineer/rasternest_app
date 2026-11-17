@@ -58,7 +58,7 @@ Write-Host "Package family name: $family"
 "@ | Set-Content -Encoding utf8 (Join-Path $Dir "RasterNest.appinstaller")
 
 # --- winget manifests ---
-$schema = "1.9.0"
+$schema = "1.28.0"
 function Write-Manifest($id, $name, $body) {
     $parts = $id.Split('.')
     $folder = Join-Path $WingetOut "manifests/$($parts[0].Substring(0,1).ToLower())/$($parts[0])/$($parts[1])/$v"
