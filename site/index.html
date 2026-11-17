@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RasterNest</title>
-<meta name="description" content="RasterNest is a free, open-source screen capture and markup app for macOS, with the rnest command-line tool for macOS and Linux. Capture. Refine. Share.">
+<meta name="description" content="RasterNest is a free, open-source screen capture, markup and recording app for macOS and Windows, with the rnest command-line tool for macOS, Windows and Linux. Capture. Refine. Share.">
 <meta property="og:title" content="RasterNest: Capture. Refine. Share.">
 <meta property="og:description" content="Grab an area, window or screen with one shortcut, mark it up, and send it. Free and open source.">
 <meta property="og:image" content="https://rasternest.app/assets/og.png">
@@ -214,8 +214,7 @@ section.alt .panel { background: var(--bg); }
 }
 .tool-chip kbd { padding: 3px 6px; font-size: 0.72rem; border-bottom-width: 2px; background: var(--surface); }
 
-.install { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-@media (max-width: 960px) { .install { grid-template-columns: minmax(0, 1fr); } }
+.install { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 20px; }
 .install .panel p { color: var(--muted); }
 .os-tag { font: 600 0.72rem/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--sky); }
 .dl-list { display: grid; gap: 8px; }
@@ -305,7 +304,7 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
         <a class="optional" href="#cli">CLI</a>
         <a class="optional" href="#agents">AI agents</a>
         <a class="optional" href="https://github.com/AMineer/rasternest_app" rel="noopener">GitHub</a>
-        <a class="btn btn-violet pill" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.dmg" title="Download RasterNest for macOS (DMG)">Download</a>
+        <a class="btn btn-violet pill nav-dl" href="#install" title="Download RasterNest">Download</a>
       </nav>
     </div>
   </header>
@@ -317,13 +316,17 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
       <p class="tagline"><span>Capture. Refine. Share.</span></p>
       <p class="lede">Grab an area, a window or the whole screen with one shortcut. Add arrows, callouts, step numbers and redaction. Copy it, drag it or export it.</p>
       <div class="cta-row">
-        <a class="btn btn-violet dl-dmg" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.dmg">
+        <a class="btn btn-violet dl-dmg dl-mac-hero" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.dmg">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.47.83-.72 0-1.82-.81-2.99-.79-1.54.02-2.96.9-3.75 2.27-1.6 2.78-.41 6.89 1.15 9.14.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.78.74 2.99.72 1.24-.02 2.02-1.12 2.77-2.23.88-1.28 1.24-2.52 1.26-2.59-.03-.01-2.41-.92-2.43-3.65zM14.1 5.86c.63-.77 1.06-1.83.94-2.89-.91.04-2.02.61-2.67 1.37-.58.67-1.1 1.76-.96 2.8 1.02.08 2.06-.52 2.69-1.28z"/></svg>
           Download for Mac
         </a>
-        <a class="btn btn-outline" href="#install">Homebrew &amp; Linux</a>
+        <a class="btn btn-outline dl-win" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.appinstaller" title="Opens in App Installer and keeps RasterNest up to date">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.1l7.4-1v7.2H3V5.1zm8.3-1.1L21 2.7v8.6h-9.7V4zM3 12.6h7.4v7.2L3 18.9v-6.3zm8.3 0H21v8.6l-9.7-1.3v-7.3z"/></svg>
+          Download for Windows
+        </a>
+        <a class="btn btn-outline" href="#install">All downloads</a>
       </div>
-      <p class="fineprint"><b class="version">Latest version</b> · macOS 14 Sonoma or later · Apple silicon and Intel · MIT licence</p>
+      <p class="fineprint"><b class="version">Latest version</b> · macOS 14 or later (Apple silicon and Intel) · Windows 10 and 11 (x64 and ARM64) · MIT licence</p>
     </div>
 
     <div class="wrap shot-crop" aria-label="The RasterNest editor with a highlighted setting, an arrow, numbered steps, a callout and a pixelated area">
@@ -493,6 +496,24 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
             <a href="https://github.com/AMineer/rasternest_app/releases/latest/download/rnest-linux-aarch64.tar.gz">rnest-linux-aarch64.tar.gz <small>ARM</small></a>
           </div>
         </div>
+        <div class="panel" id="windows">
+          <span class="os-tag">Windows · app</span>
+          <h3>Install for Windows</h3>
+          <p>Open <b>RasterNest.appinstaller</b> and choose Install. RasterNest lives in the notification area (press Print Screen to capture) and updates itself. Windows 10 (2004 or later) or 11.</p>
+          <div class="dl-list">
+            <a class="dl-win" href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.appinstaller">RasterNest.appinstaller <small>Recommended</small></a>
+            <a href="https://github.com/AMineer/rasternest_app/releases/latest/download/RasterNest.msixbundle">RasterNest.msixbundle <small>Full installer, x64 + ARM64</small></a>
+          </div>
+        </div>
+        <div class="panel">
+          <span class="os-tag">Windows · CLI</span>
+          <h3>rnest for Windows</h3>
+          <p>In RasterNest, open Settings › <b>Install Command Line Tool</b> to put <code>rnest</code> on your PATH. Or download it on its own: one self-contained <code>rnest.exe</code>.</p>
+          <div class="dl-list">
+            <a href="https://github.com/AMineer/rasternest_app/releases/latest/download/rnest-windows-x64.zip">rnest-windows-x64.zip <small>Intel/AMD</small></a>
+            <a href="https://github.com/AMineer/rasternest_app/releases/latest/download/rnest-windows-arm64.zip">rnest-windows-arm64.zip <small>ARM</small></a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -571,19 +592,20 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
         <div class="panel frame">
           <span class="os-tag">Claude Desktop</span>
           <h3>Add to the config</h3>
-          <p>Open <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (or Settings › Developer › Edit Config, where your version has it), add this inside <code>"mcpServers"</code>, then quit Claude with ⌘Q and reopen it.</p>
+          <p><b>Windows:</b> in RasterNest, open Settings › <b>Add to Claude Desktop</b>. It does this for you.</p>
+          <p><b>Mac:</b> open <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (or Settings › Developer › Edit Config, where your version has it), add this inside <code>"mcpServers"</code>, then quit Claude with ⌘Q and reopen it.</p>
           <div class="snippet"><pre class="cfg-mcp">"rasternest": {
   "command": "/opt/homebrew/bin/rnest",
   "args": ["mcp"]
 }</pre><button class="copy" type="button" data-copy=".cfg-mcp">Copy</button></div>
-          <p>Use the path <code>which rnest</code> prints.</p>
+          <p>Use the path <code>which rnest</code> prints. On Windows the file is <code>%APPDATA%\Claude\claude_desktop_config.json</code> and the command is the path <code>where rnest</code> prints.</p>
         </div>
         <div class="panel frame">
           <span class="os-tag">Before you start</span>
           <h3>Two things</h3>
           <ol>
-            <li><b>Install <code>rnest</code>.</b> Homebrew does it for you (see <a href="#install">Install</a>). With the DMG, choose <b>Install Command Line Tool…</b> from the RasterNest menu.</li>
-            <li><b>Allow Screen Recording</b> for the app that runs it: your terminal for Claude Code, Claude for Claude Desktop. macOS asks on the first capture.</li>
+            <li><b>Install <code>rnest</code>.</b> Homebrew does it for you (see <a href="#install">Install</a>). With the DMG, choose <b>Install Command Line Tool…</b> from the RasterNest menu; on Windows, it&rsquo;s in RasterNest&rsquo;s Settings.</li>
+            <li><b>Allow screen capture.</b> On macOS, allow Screen Recording for the app that runs it (your terminal for Claude Code, Claude for Claude Desktop); macOS asks on the first capture. Windows needs no permission.</li>
           </ol>
         </div>
       </div>
@@ -665,6 +687,19 @@ footer { background: var(--ink); color: var(--on-ink-muted); padding-block: 36px
       setTimeout(() => (btn.textContent = "Copy"), 1600);
     });
   });
+
+  // Windows visitors: their download first, and the nav button goes straight to it.
+  if (/Windows/i.test(navigator.userAgent)) {
+    const mac = document.querySelector(".dl-mac-hero");
+    const win = document.querySelector(".cta-row .dl-win");
+    if (mac && win) {
+      win.classList.replace("btn-outline", "btn-violet");
+      mac.classList.replace("btn-violet", "btn-outline");
+      mac.parentNode.insertBefore(win, mac);
+    }
+    const nav = document.querySelector(".nav-dl");
+    if (nav && win) nav.href = win.href;
+  }
 
   // Show the latest version number (best effort; download links never depend on this call).
   fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: "application/vnd.github+json" } })
