@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="RasterNest.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+            <!-- Brand: sky #0EA5E9, violet #7C3AED (same as the Mac app and rasternest.app). -->
+            <Color x:Key="BrandSky">#0EA5E9</Color>
+            <Color x:Key="BrandViolet">#7C3AED</Color>
+            <SolidColorBrush x:Key="BrandSkyBrush" Color="{StaticResource BrandSky}" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

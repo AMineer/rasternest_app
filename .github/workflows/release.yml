@@ -10,6 +10,9 @@ name: Release
 #   SPARKLE_ED_PRIVATE_KEY  EdDSA key that signs in-app updates (appcast.xml)
 #   HOMEBREW_TAP_DEPLOY_KEY SSH deploy key with write access to <owner>/homebrew-tap (preferred)
 #   HOMEBREW_TAP_TOKEN      or: a fine-grained PAT with push access to that repo
+#
+# Windows signing uses Azure Artifact Signing through OIDC (no secrets). The `release` environment holds the
+# variables AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_SUBSCRIPTION_ID, SIGNING_ENDPOINT, SIGNING_ACCOUNT, SIGNING_PROFILE.
 
 on:
   push:
@@ -84,8 +87,81 @@ jobs:
           name: linux-${{ matrix.runner }}
           path: build/*.tar.gz
 
+  windows:
+    runs-on: windows-latest
+    environment: release
+    permissions:
+      id-token: write   # Azure sign-in through OIDC
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Set version from tag
+        shell: bash
+        run: ./scripts/set-version.sh "${GITHUB_REF_NAME#v}"
+      - name: Build MSIX bundle and rnest.exe
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -SkipZip
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Sign
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\build\windows
+          files-folder-filter: msixbundle,exe
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          exclude-environment-credential: true
+          exclude-workload-identity-credential: true
+          exclude-managed-identity-credential: true
+          exclude-shared-token-cache-credential: true
+          exclude-visual-studio-credential: true
+          exclude-visual-studio-code-credential: true
+          exclude-azure-cli-credential: false
+          exclude-azure-powershell-credential: true
+          exclude-azure-developer-cli-credential: true
+          exclude-interactive-browser-credential: true
+      - name: Check signatures
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          Get-ChildItem build/windows -Recurse -Include *.msixbundle,*.exe | ForEach-Object {
+            & $signtool.FullName verify /pa /q $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "$($_.Name) is not signed" }
+            "$($_.Name): signed"
+          }
+      - name: Zip rnest
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -ZipOnly
+      - name: Update feed and winget manifests
+        shell: pwsh
+        run: ./scripts/render-windows-manifests.ps1 -Repo "${{ github.repository }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            build/windows/*.msixbundle
+            build/windows/*.zip
+            build/windows/RasterNest.appinstaller
+      - uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifests
+          path: winget-out
+
   publish:
-    needs: [macos, linux]
+    needs: [macos, linux, windows]
     runs-on: ubuntu-24.04
     env:
       HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -97,6 +173,11 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+          pattern: "{macos,linux-*,windows}"
+      - uses: actions/download-artifact@v4
+        with:
+          name: winget-manifests
+          path: winget-out
       - name: Stable download names (for rasternest.app links)
         run: |
           V="${GITHUB_REF_NAME#v}"
@@ -105,8 +186,13 @@ jobs:
           cp "rnest-$V-macos-universal.tar.gz" rnest-macos-universal.tar.gz
           cp "rnest-$V-linux-x86_64.tar.gz" rnest-linux-x86_64.tar.gz
           cp "rnest-$V-linux-aarch64.tar.gz" rnest-linux-aarch64.tar.gz
+          cp "RasterNest-$V.msixbundle" RasterNest.msixbundle
+          cp "rnest-$V-windows-x64.zip" rnest-windows-x64.zip
+          cp "rnest-$V-windows-arm64.zip" rnest-windows-arm64.zip
       - name: Checksums
         run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: winget manifests as a release asset
+        run: cd winget-out && zip -qr ../dist/winget-manifests.zip manifests
       - name: Render Homebrew cask + formula
         run: ./scripts/render-homebrew.sh "$GITHUB_REPOSITORY" dist homebrew-out
       - name: GitHub release

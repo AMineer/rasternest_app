@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The RasterNest app for Windows: tray icon, global shortcuts, capture overlay, editor and library.
+       WinUI 3 (Windows App SDK 1.8) with the SkiaSharp renderer shared with rnest.exe. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RootNamespace>RasterNest.App</RootNamespace>
+    <AssemblyName>RasterNest</AssemblyName>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\rasternest.ico</ApplicationIcon>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Unpackaged for development; the MSIX build sets WindowsPackageType=MSIX. -->
+    <WindowsPackageType Condition="'$(WindowsPackageType)' == ''">None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <Nullable>enable</Nullable>
+    <!-- Our own Main: single instance before XAML starts. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />
+    <PackageReference Include="SkiaSharp.Views.WinUI" Version="3.119.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Images\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- MSIX packaging (scripts/package-windows.ps1 and the release workflow). Signing happens separately with Azure Artifact Signing. -->
+  <ItemGroup Condition="'$(WindowsPackageType)' == 'MSIX'">
+    <AppxManifest Include="Package.appxmanifest" SubType="Designer" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(WindowsPackageType)' != 'MSIX'">
+    <None Include="Package.appxmanifest" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(WindowsPackageType)' == 'MSIX'">
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <AppxBundle>Never</AppxBundle>
+    <GenerateTestArtifacts>false</GenerateTestArtifacts>
+    <GenerateTemporaryStoreCertificate>false</GenerateTemporaryStoreCertificate>
+    <AppxPackageIncludePrivateSymbols>false</AppxPackageIncludePrivateSymbols>
+    <AppxSymbolPackageEnabled>false</AppxSymbolPackageEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RasterNest.Core/RasterNest.Core.csproj" />
+    <ProjectReference Include="../RasterNest.Render/RasterNest.Render.csproj" />
+    <ProjectReference Include="../RasterNest.Windows/RasterNest.Windows.csproj" />
+  </ItemGroup>
+</Project>

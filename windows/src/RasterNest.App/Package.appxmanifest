@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX package for RasterNest on Windows.
+  Publisher must match the signing certificate's subject exactly (Azure Artifact Signing profile "rasternest-am").
+  Version is set from the repo's VERSION file by scripts/set-version.sh (MSIX needs four parts).
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 uap5 desktop rescap">
+
+  <Identity
+    Name="A2M4.RasterNest"
+    Publisher="CN=Anthony Mineer, O=Anthony Mineer, L=Batavia, S=oh, C=US"
+    Version="0.4.4.0" />
+
+  <Properties>
+    <DisplayName>RasterNest</DisplayName>
+    <PublisherDisplayName>Anthony Mineer</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+    <Description>Capture, annotate, record and share screenshots. Open source.</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="RasterNest"
+        Description="Capture, annotate, record and share screenshots."
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Images\SplashScreen.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- Double-click a .rasternest file to edit it. -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="rasternest">
+            <uap:DisplayName>RasterNest document</uap:DisplayName>
+            <uap:Logo>Images\Square44x44Logo.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType ContentType="application/x-rasternest">.rasternest</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
+        <!-- rasternest://capture, ://open?path=… (used by rnest edit and the website). -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="rasternest">
+            <uap:DisplayName>RasterNest</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+
+        <!-- Optional "Start RasterNest when you sign in" (off until you turn it on in Settings). -->
+        <uap5:Extension Category="windows.startupTask">
+          <uap5:StartupTask TaskId="RasterNestStartup" Enabled="false" DisplayName="RasterNest" />
+        </uap5:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
